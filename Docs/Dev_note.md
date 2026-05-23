@@ -1,0 +1,88 @@
+# Dev Daily Notes
+
+## Module/Graph/Graph_csr.cppm
+- **struct** `edge`
+  - 23 May 2026 - init
+  - 
+- **struct** `csr_weighted_graph`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::node_contains`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::nodes_range`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::edge_contains`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::edges_range`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::node_edges_range`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::add_node_without_edge`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::add_node_with_edge`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::add_last_node_edge`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::dfs_loop`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::bfs_loop`
+  - 23 May 2026 - init
+  - 
+- **function** `csr_weighted_graph::ucs_loop`
+  - 23 May 2026 - init
+  - 
+- **struct** `std::formatter<Graph::csr_graph::edge>`
+  - 23 May 2026 - init
+  - 
+
+## Module/Graph/Graph_function.cppm
+- **enum class** `function_flow`
+  - 23 May 2026 - init
+  - 
+- **concept** `is_node`
+  - 23 May 2026 - init
+  - 
+- **concept** `is_weight`
+  - 23 May 2026 - init
+  - 
+- **concept** `is_edge`
+  - 23 May 2026 - init
+  - 
+- **concept** `node_function`
+  - 23 May 2026 - init
+  - 
+- **concept** `edge_function`
+  - 23 May 2026 - init
+  - 
+- **concept** `node_cost_function`
+  - 23 May 2026 - init
+  - 
+- **concept** `cost_function`
+  - 23 May 2026 - init
+  - 
+- **struct** `unused_node_func`
+  - 23 May 2026 - init
+  - 
+- **struct** `unused_edge_func`
+  - 23 May 2026 - init
+  - 
+- **struct** `unused_node_cost_func`
+  - 23 May 2026 - init
+  - 
+- **struct** `default_cost_func`
+  - 23 May 2026 - init
+  - 
+
+## Module/Graph/Graph.cppm
+- *Module umbrella file, re-exports components only*
+  - 23 May 2026 - init
+  - 
