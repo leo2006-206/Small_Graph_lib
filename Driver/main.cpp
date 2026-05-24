@@ -33,58 +33,58 @@ auto test_get_graph = []{
 	return g;
 };
 
-auto test_dfs_bfs = [](Small_Graph::csr_weighted_graph& g){
-	using namespace Small_Graph;
-	auto first = [](const node id){
-		Debug::debug_print_log("pop node {} from container",id);
-		return function::function_flow::iteration_continue;
-	};
-	auto second = [](const node v, const edge e){
-		Debug::debug_print_log("\tfind edge fron node {} to node {} with cost {}",v, e._dest_id, e._weight);
-		return function::function_flow::iteration_continue;
-	};
-	auto third = [](const node v){
-		if(v == 4){
-			Debug::debug_print_log("find dest == 4");
-			return function::function_flow::function_return;
-		}
-		return function::function_flow::iteration_continue;
-	};
+// auto test_dfs_bfs = [](Small_Graph::csr_weighted_graph& g){
+// 	using namespace Small_Graph;
+// 	auto first = [](const node id){
+// 		Debug::debug_print_log("pop node {} from container",id);
+// 		return function::function_flow::iteration_continue;
+// 	};
+// 	auto second = [](const node v, const edge e){
+// 		Debug::debug_print_log("\tfind edge fron node {} to node {} with cost {}",v, e._dest_id, e._weight);
+// 		return function::function_flow::iteration_continue;
+// 	};
+// 	auto third = [](const node v){
+// 		if(v == 4){
+// 			Debug::debug_print_log("find dest == 4");
+// 			return function::function_flow::function_return;
+// 		}
+// 		return function::function_flow::iteration_continue;
+// 	};
 
-	std::print("\n\ndfs start\n");
-	g.dfs_loop(0, first, second, third);
+// 	std::print("\n\ndfs start\n");
+// 	// g.dfs_loop(0, first, second, third);
 
-	std::print("\n\nbfs start\n");
-	g.bfs_loop(0, first, second, third);
-};
+// 	std::print("\n\nbfs start\n");
+// 	// g.bfs_loop(0, first, second, third);
+// };
 
-auto test_ucs = [](Small_Graph::csr_weighted_graph& g){
-	using namespace Small_Graph;
-	auto first = [](const node id, const std::uint32_t cost){
-		Debug::debug_print_log("pop node {} with total cost {} from container",id, cost);
-		return function::function_flow::iteration_continue;
-	};
-	auto second = [](const node v, const edge e, const std::uint32_t cost){
-		Debug::debug_print_log("\tfind edge fron node {} to node {} with cost {} and total cost {}"
-			,v, e._dest_id, e._weight, cost);
-		return function::function_flow::iteration_continue;
-	};
-	auto third = [](const node v, const std::uint32_t cost){
-		if(v == 4){
-			Debug::debug_print_log("find dest == 4");
-			return function::function_flow::function_return;
-		}
-		return function::function_flow::iteration_continue;
-	};
+// auto test_ucs = [](Small_Graph::csr_weighted_graph& g){
+// 	using namespace Small_Graph;
+// 	auto first = [](const node id, const std::uint32_t cost){
+// 		Debug::debug_print_log("pop node {} with total cost {} from container",id, cost);
+// 		return function::function_flow::iteration_continue;
+// 	};
+// 	auto second = [](const node v, const edge e, const std::uint32_t cost){
+// 		Debug::debug_print_log("\tfind edge fron node {} to node {} with cost {} and total cost {}"
+// 			,v, e._dest_id, e._weight, cost);
+// 		return function::function_flow::iteration_continue;
+// 	};
+// 	auto third = [](const node v, const std::uint32_t cost){
+// 		if(v == 4){
+// 			Debug::debug_print_log("find dest == 4");
+// 			return function::function_flow::function_return;
+// 		}
+// 		return function::function_flow::iteration_continue;
+// 	};
 
-	std::print("\n\nucs start\n");
-	g.ucs_loop(0, first, second, function::default_cost_func{}, third);
-};
+// 	std::print("\n\nucs start\n");
+// 	// g.ucs_loop(0, first, second, function::default_cost_func{}, third);
+// };
 
 void test_graph(){
 	auto g = test_get_graph();
-	test_dfs_bfs(g);
-	test_ucs(g);
+// 	test_dfs_bfs(g);
+// 	test_ucs(g);
 }
 
 int main(void){

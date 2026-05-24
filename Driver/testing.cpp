@@ -68,6 +68,21 @@ void print_graph_stat(Small_Graph::csr_weighted_graph& g){
 	std::print("\nLoaded real edges num = {}", num_edge);
 }
 
+struct BestTargetVisitor {
+    static inline std::uint32_t best_target = 0;
+
+    auto find_node(const auto n) const {
+        best_target = n;
+        return Graph::function::function_flow::iteration_continue;
+    }
+    auto find_edge([[maybe_unused]] const auto n, [[maybe_unused]] const auto e) const {
+        return Graph::function::function_flow::iteration_continue;
+    }
+    auto end_node([[maybe_unused]] const auto n) const {
+        return Graph::function::function_flow::iteration_continue;
+    }
+};
+
 auto find_best_source_dest(Small_Graph::csr_weighted_graph& g){
 	std::uint32_t best_start = 0;
     std::size_t max_edges = 0;
@@ -79,11 +94,10 @@ auto find_best_source_dest(Small_Graph::csr_weighted_graph& g){
         }
     }
 
-    std::uint32_t best_target = best_start;
-    g.bfs_loop(best_start,
-        [&best_target](const auto n) { best_target = n; return Graph::function::function_flow::iteration_continue; }
-    );
+    BestTargetVisitor::best_target = best_start;
+    g.bfs_loop(best_start, BestTargetVisitor{});
 
+    std::uint32_t best_target = BestTargetVisitor::best_target;
     std::print("\nBest start node: {} with {} edges. Target node: {} (furthest reachable)\n", best_start, max_edges, best_target);
 
 	return std::pair{best_start, best_target};
@@ -120,13 +134,17 @@ struct CostStatVisitor {
         node_count++;
         return Graph::function::function_flow::iteration_continue;
     }
+    auto find_edge([[maybe_unused]] const auto n, [[maybe_unused]] const cost_type w, [[maybe_unused]] const auto e) const {
+        edge_count++;
+        return Graph::function::function_flow::iteration_continue;
+    }
     auto find_edge([[maybe_unused]] const auto n, [[maybe_unused]] const auto e, [[maybe_unused]] const cost_type w) const {
         edge_count++;
         return Graph::function::function_flow::iteration_continue;
     }
-    auto cal_cost([[maybe_unused]] const auto n, const auto e) const {
+    auto cal_cost([[maybe_unused]] const auto n, [[maybe_unused]] const cost_type w, const auto e) const {
         total_cost += e._weight; 
-        return e._weight;
+        return w + e._weight;
     }
     auto end_node([[maybe_unused]] const auto n, [[maybe_unused]] const cost_type w) const {
         return Graph::function::function_flow::iteration_continue;
@@ -179,6 +197,15 @@ struct CostSearchVisitor {
         }
         return Graph::function::function_flow::iteration_continue;
     }
+    auto find_edge([[maybe_unused]] const auto n, const cost_type w, const auto e) const {
+        step_count++;
+        if (e._dest_id == TargetDest) {
+            found = true;
+            reached_cost = w + e._weight;
+            return Graph::function::function_flow::function_return;
+        }
+        return Graph::function::function_flow::iteration_continue;
+    }
     auto find_edge([[maybe_unused]] const auto n, const auto e, const cost_type w) const {
         step_count++;
         if (e._dest_id == TargetDest) {
@@ -188,8 +215,8 @@ struct CostSearchVisitor {
         }
         return Graph::function::function_flow::iteration_continue;
     }
-    auto cal_cost([[maybe_unused]] const auto n, const auto e) const {
-        return e._weight;
+    auto cal_cost([[maybe_unused]] const auto n, [[maybe_unused]] const cost_type w, const auto e) const {
+        return w + e._weight;
     }
     auto end_node([[maybe_unused]] const auto n, [[maybe_unused]] const cost_type w) const {
         return Graph::function::function_flow::iteration_continue;
@@ -198,37 +225,36 @@ struct CostSearchVisitor {
 
 void dfs_bfs_test(Small_Graph::csr_weighted_graph& g, std::uint32_t start_node, std::uint32_t target_node){
     std::print("\n=== DFS / BFS Tests ===\n");
+    
+    // DFS Stat Test
     StatVisitor::reset();
-    std::print("DFS Loop (Start {}):\n", start_node);
+    std::print("DFS Loop Stat (Start {}):\n", start_node);
     Timing::measure([&]() {
-        g.dfs_loop(start_node, 
-            [](const auto n) { return StatVisitor{}.find_node(n); },
-            [](const auto n, const auto e) { return StatVisitor{}.find_edge(n, e); },
-            [](const auto n) { return StatVisitor{}.end_node(n); }
-        );
+        g.dfs_loop(start_node, StatVisitor{});
     });
-    std::print("DFS: Node count: {}, Edge count: {}\n", StatVisitor::node_count, StatVisitor::edge_count);
+    std::print("DFS Stat: Node count: {}, Edge count: {}\n", StatVisitor::node_count, StatVisitor::edge_count);
 
-    StatVisitor::reset();
-    std::print("BFS Loop (Start {}):\n", start_node);
-    Timing::measure([&]() {
-        g.bfs_loop(start_node, 
-            [](const auto n) { return StatVisitor{}.find_node(n); },
-            [](const auto n, const auto e) { return StatVisitor{}.find_edge(n, e); },
-            [](const auto n) { return StatVisitor{}.end_node(n); }
-        );
-    });
-    std::print("BFS: Node count: {}, Edge count: {}\n", StatVisitor::node_count, StatVisitor::edge_count);
-
-    // Search for a specific node
+    // DFS Search Test
     SearchVisitor::reset(target_node);
-    std::print("BFS Loop Search for node {}:\n", target_node);
+    std::print("DFS Loop Search (Start {}, Target {}):\n", start_node, target_node);
     Timing::measure([&]() {
-        g.bfs_loop(start_node,
-            [](const auto n) { return SearchVisitor{}.find_node(n); },
-            [](const auto n, const auto e) { return SearchVisitor{}.find_edge(n, e); },
-            [](const auto n) { return SearchVisitor{}.end_node(n); }
-        );
+        g.dfs_loop(start_node, SearchVisitor{});
+    });
+    std::print("DFS Search({}): Found: {}, Steps: {}\n", target_node, SearchVisitor::found, SearchVisitor::step_count);
+
+    // BFS Stat Test
+    StatVisitor::reset();
+    std::print("BFS Loop Stat (Start {}):\n", start_node);
+    Timing::measure([&]() {
+        g.bfs_loop(start_node, StatVisitor{});
+    });
+    std::print("BFS Stat: Node count: {}, Edge count: {}\n", StatVisitor::node_count, StatVisitor::edge_count);
+
+    // BFS Search Test
+    SearchVisitor::reset(target_node);
+    std::print("BFS Loop Search (Start {}, Target {}):\n", start_node, target_node);
+    Timing::measure([&]() {
+        g.bfs_loop(start_node, SearchVisitor{});
     });
     std::print("BFS Search({}): Found: {}, Steps: {}\n", target_node, SearchVisitor::found, SearchVisitor::step_count);
 }
@@ -238,12 +264,7 @@ void ucs_test(Small_Graph::csr_weighted_graph& g, std::uint32_t start_node, std:
     CostStatVisitor::reset();
     std::print("UCS Loop (Start {}):\n", start_node);
     Timing::measure([&]() {
-        g.ucs_loop(start_node,
-            [](const auto n, auto w) { return CostStatVisitor{}.find_node(n, w); },
-            [](const auto n, const auto e, auto w) { return CostStatVisitor{}.find_edge(n, e, w); },
-            [](const auto n, const auto e) { return CostStatVisitor{}.cal_cost(n, e); },
-            [](const auto n, auto w) { return CostStatVisitor{}.end_node(n, w); }
-        );
+        g.ucs_loop(start_node, CostStatVisitor{});
     });
     std::print("UCS Stat: Node count: {}, Edge count: {}, Total Cost Evaluated: {}\n", 
                  CostStatVisitor::node_count, CostStatVisitor::edge_count, CostStatVisitor::total_cost);
@@ -251,15 +272,28 @@ void ucs_test(Small_Graph::csr_weighted_graph& g, std::uint32_t start_node, std:
     CostSearchVisitor::reset(target_node);
     std::print("UCS Loop Search for node {}:\n", target_node);
     Timing::measure([&]() {
-        g.ucs_loop(start_node,
-            [](const auto n, auto w) { return CostSearchVisitor{}.find_node(n, w); },
-            [](const auto n, const auto e, auto w) { return CostSearchVisitor{}.find_edge(n, e, w); },
-            [](const auto n, const auto e) { return CostSearchVisitor{}.cal_cost(n, e); },
-            [](const auto n, auto w) { return CostSearchVisitor{}.end_node(n, w); }
-        );
+        g.ucs_loop(start_node, CostSearchVisitor{});
     });
     std::print("UCS Search({}): Found: {}, Steps: {}, Reached Cost: {}\n", 
         target_node, CostSearchVisitor::found, CostSearchVisitor::step_count, CostSearchVisitor::reached_cost);
+}
+
+void stat_v(Small_Graph::csr_weighted_graph& g){
+	{
+		Timing::print_timer _;
+		StatVisitor::reset();
+		for(int i = 0; i < 10000; ++i){
+			g.dfs_loop(4872, StatVisitor{});
+		}
+	}
+
+	{
+		Timing::print_timer _;
+		StatVisitor::reset();
+		for(int i = 0; i < 10000; ++i){
+			g.bfs_loop(4872, StatVisitor{});
+		}
+	}
 }
 
 int main(void){
@@ -267,8 +301,24 @@ int main(void){
 	auto g = load_graph_from_file("./Dataset/advogato/advogato.edges");
 	print_graph_stat(g);
 
-    dfs_bfs_test(g, 4872, 2086);
-    ucs_test(g, 4872, 2086);
+    // dfs_bfs_test(g, 4872, 2086);
+    // ucs_test(g, 4872, 2086);
+
+	{
+		Timing::print_timer _;
+		SearchVisitor::reset(2086);
+		for(int i = 0; i < 10000; ++i){
+			g.dfs_loop(4872, SearchVisitor{});
+		}
+	}
+
+	// {
+	// 	Timing::print_timer _;
+	// 	SearchVisitor::reset(2086);
+	// 	for(int i = 0; i < 10000; ++i){
+	// 		g.bfs_loop(4872, SearchVisitor{});
+	// 	}
+	// }
 
 	return 0;
 }

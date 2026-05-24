@@ -21,12 +21,13 @@ export namespace Graph::csr_graph{
 using node = std::uint32_t;
 
 struct edge{
-	node			_dest_id;
-	std::uint32_t	_weight;
+	using cost_type = std::uint32_t;
+	node		_dest_id;
+	cost_type	_weight;
 
 	constexpr edge(
-		std::uint32_t id,
-		std::uint32_t weight
+		node		id,
+		cost_type	weight
 	): _dest_id(id), _weight(weight){}
 };
 
@@ -57,136 +58,107 @@ struct csr_weighted_graph{
 	node			add_node_with_edge(edge new_edge);
 	node			add_last_node_edge(edge new_edge);
 
-	template<	
-		typename discover_node	= gf::unused_node_func,
-		typename examine_edge	= gf::unused_edge_func,
-		typename finish_node	= gf::unused_node_func
-	>
-	requires
-		gf::node_function<discover_node, node> &&
-		gf::edge_function<examine_edge, node, edge> &&
-		gf::node_function<finish_node, node>
-	void dfs_loop(
-		node 			start_id,
-		discover_node	find_node	={},
-		examine_edge	find_edge	={},
-		finish_node		end_node	={}
-	){
+	template<typename non_cost_visitor = function::default_non_cost_visitor>
+	requires function::is_non_cost_graph_visitor<non_cost_visitor, node, edge>
+	void dfs_loop(node start_id, const non_cost_visitor graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
 
+		constexpr auto cal_offset = [](node id) -> std::uint64_t{
+			return 1 << (id & 63);
+		};
+
 		std::vector<node> stack;
-		std::vector<std::bitset<64>> visit_vec;
-		visit_vec.resize((_node_vec.size() >> 6) + 1);
+		std::vector<std::uint64_t> visit_vec;
+		visit_vec.resize((_node_vec.size() >> 6) + 1, 0);
 		stack.reserve(_node_vec.size() >> 1);
 
 		stack.emplace_back(start_id);
-		visit_vec[start_id >> 6].set(start_id & (64 - 1), true);
+		visit_vec[start_id >> 6] |= cal_offset(start_id);
 
 		while(!stack.empty()){
 			const auto current_node = stack.back();
 			stack.pop_back();
 
-			auto flow_1 = find_node(current_node);
+			auto flow_1 = graph_visitor.find_node(current_node);
 			GRAPH_HANDLE_FLOW(flow_1)	//macro
 
-			for(const auto& current_edge : node_edges_range(current_node)){
+			for(const auto current_edge : node_edges_range(current_node)){
 				
-				if(!node_contains(current_edge._dest_id))	continue;
+				if(current_edge._dest_id == NULL_EDGE._dest_id)	continue;
 
-				auto flow_2 = find_edge(current_node, current_edge);
+				auto flow_2 = graph_visitor.find_edge(current_node, current_edge);
 				GRAPH_HANDLE_FLOW(flow_2)	//macro
 
 				auto dest = current_edge._dest_id;
+				auto& bit_pos = visit_vec[dest >> 6];
 
-				if(visit_vec[dest >> 6].test(dest & (64 - 1)) == false && node_contains(dest)){
-					visit_vec[dest >> 6].set(dest & (64 - 1), true);
+				if((bit_pos & cal_offset(dest)) == false && current_edge._dest_id != NULL_EDGE._dest_id){
+					bit_pos |= cal_offset(dest);
 					stack.emplace_back(dest);
 				}
 			}
 
-			auto flow_3 = end_node(current_node);
+			auto flow_3 = graph_visitor.end_node(current_node);
 			GRAPH_HANDLE_FLOW(flow_3)	//macro
 		}
 	}
 
-	template<	
-		typename discover_node	= gf::unused_node_func,
-		typename examine_edge	= gf::unused_edge_func,
-		typename finish_node	= gf::unused_node_func
-	>
-	requires
-		gf::node_function<discover_node, node> &&
-		gf::edge_function<examine_edge, node, edge> &&
-		gf::node_function<finish_node, node>
-	void bfs_loop(
-		node 			start_id,
-		discover_node	find_node	={},
-		examine_edge	find_edge	={},
-		finish_node		end_node	={}
-	){
+	template<typename non_cost_visitor = function::default_non_cost_visitor>
+	requires function::is_non_cost_graph_visitor<non_cost_visitor, node, edge>
+	void bfs_loop(node start_id, const non_cost_visitor graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
+
+		constexpr auto cal_offset = [](node id) -> std::uint64_t{
+			return 1 << (id & 63);
+		};
 		
 		std::queue<node, std::deque<node>> queue;
-		std::vector<std::bitset<64>> visit_vec;
-		visit_vec.resize((_node_vec.size() >> 6) + 1);
+		std::vector<std::uint64_t> visit_vec;
+		visit_vec.resize((_node_vec.size() >> 6) + 1, 0);
 
 		queue.emplace(start_id);
-		visit_vec[start_id >> 8].set(start_id & (64 - 1), true);
+		visit_vec[start_id >> 6] |= cal_offset(start_id);
 
 		while(!queue.empty()){
 			const auto current_node = queue.front();
 			queue.pop();
 
-			auto flow_1 = find_node(current_node);
+			auto flow_1 = graph_visitor.find_node(current_node);
 			GRAPH_HANDLE_FLOW(flow_1)	//macro
 
-			for(const auto& current_edge : node_edges_range(current_node)){
+			for(const auto current_edge : node_edges_range(current_node)){
 				
-				if(!node_contains(current_edge._dest_id))	continue;
+				if(current_edge._dest_id == NULL_EDGE._dest_id)	continue;
 
-				auto flow_2 = find_edge(current_node, current_edge);
+				auto flow_2 = graph_visitor.find_edge(current_node, current_edge);
 				GRAPH_HANDLE_FLOW(flow_2)	//macro
 
 				auto dest = current_edge._dest_id;
+				auto& bit_pos = visit_vec[dest >> 6];
 
-				if(visit_vec[dest >> 6].test(dest & (64 - 1)) == false){
-					visit_vec[dest >> 6].set(dest & (64 - 1), true);
-						queue.emplace(dest);
+				if((bit_pos & cal_offset(dest)) == false && current_edge._dest_id != NULL_EDGE._dest_id){
+					bit_pos |= cal_offset(dest);
+					queue.emplace(dest);
 				}
 				
 			}
 
-			auto flow_3 = end_node(current_node);
+			auto flow_3 = graph_visitor.end_node(current_node);
 			GRAPH_HANDLE_FLOW(flow_3)	//macro
 		}
 	}
 
-	template<
-		typename discover_node	= gf::unused_node_cost_func,
-		typename examine_edge	= gf::unused_edge_cost_func,
-		typename compute_cost	= gf::default_cost_func,
-		typename finish_node	= gf::unused_node_cost_func
-	>
-	requires
-		gf::node_cost_function<discover_node, node, std::invoke_result_t<compute_cost, const node, const edge>> &&
-		gf::edge_cost_function<examine_edge, node, edge, std::invoke_result_t<compute_cost, const node, const edge>> &&
-		gf::cost_function<compute_cost, node, edge> &&
-		gf::node_cost_function<finish_node, node, std::invoke_result_t<compute_cost, const node, const edge>>
-	void ucs_loop(
-		node 			start_id,
-		discover_node	find_node	={},
-		examine_edge	find_edge	={},
-		compute_cost	cal_cost	={},
-		finish_node		end_node	={}
-	){
+	template<typename cost_visitor = function::default_cost_visitor<edge::cost_type>>
+	requires function::is_cost_graph_visitor<cost_visitor, node, edge>
+	void ucs_loop(node start_id, const cost_visitor graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
-		using cost_t = std::invoke_result_t<compute_cost, const node, const edge>;
+		using cost_t = typename cost_visitor::cost_type;
 		using cost_pair = std::pair<cost_t, node>;
 		using heap_t = std::priority_queue<cost_pair, std::vector<cost_pair>, std::greater<cost_pair>>;
 
@@ -210,17 +182,17 @@ struct csr_weighted_graph{
                 continue; 
             }
 
-			auto flow_1 = find_node(current_node, current_cost);
+			auto flow_1 = graph_visitor.find_node(current_node, current_cost);
 			GRAPH_HANDLE_FLOW(flow_1)	//macro
 
 			for(const auto& current_edge : node_edges_range(current_node)){
 				
 				if(!node_contains(current_edge._dest_id))	continue;
 
-				auto flow_2 = find_edge(current_node, current_edge, current_cost);
+				auto flow_2 = graph_visitor.find_edge(current_node, current_edge, current_cost);
 				GRAPH_HANDLE_FLOW(flow_2)	//macro
 
-				cost_t next_cost = cal_cost(current_node, current_edge) + current_cost;
+				cost_t next_cost = graph_visitor.cal_cost(current_node, current_cost, current_edge);
 
 				if (next_cost < cost_vec[current_edge._dest_id]) {
                     cost_vec[current_edge._dest_id] = next_cost;
@@ -228,7 +200,7 @@ struct csr_weighted_graph{
                 }
 			}
 
-			auto flow_3 = end_node(current_node, current_cost);
+			auto flow_3 = graph_visitor.end_node(current_node, current_cost);
 			GRAPH_HANDLE_FLOW(flow_3)	//macro
 		}
 	}
