@@ -167,15 +167,15 @@ struct csr_weighted_graph{
 
 	template<
 		typename discover_node	= gf::unused_node_cost_func,
-		typename examine_edge	= gf::unused_edge_func,
+		typename examine_edge	= gf::unused_edge_cost_func,
 		typename compute_cost	= gf::default_cost_func,
-		typename finish_node	= gf::unused_node_func
+		typename finish_node	= gf::unused_node_cost_func
 	>
 	requires
 		gf::node_cost_function<discover_node, node, std::invoke_result_t<compute_cost, const node, const edge>> &&
-		gf::edge_function<examine_edge, node, edge> &&
+		gf::edge_cost_function<examine_edge, node, edge, std::invoke_result_t<compute_cost, const node, const edge>> &&
 		gf::cost_function<compute_cost, node, edge> &&
-		gf::node_function<finish_node, node>
+		gf::node_cost_function<finish_node, node, std::invoke_result_t<compute_cost, const node, const edge>>
 	void ucs_loop(
 		node 			start_id,
 		discover_node	find_node	={},
@@ -217,7 +217,7 @@ struct csr_weighted_graph{
 				
 				if(!node_contains(current_edge._dest_id))	continue;
 
-				auto flow_2 = find_edge(current_node, current_edge);
+				auto flow_2 = find_edge(current_node, current_edge, current_cost);
 				GRAPH_HANDLE_FLOW(flow_2)	//macro
 
 				cost_t next_cost = cal_cost(current_node, current_edge) + current_cost;
@@ -228,7 +228,7 @@ struct csr_weighted_graph{
                 }
 			}
 
-			auto flow_3 = end_node(current_node);
+			auto flow_3 = end_node(current_node, current_cost);
 			GRAPH_HANDLE_FLOW(flow_3)	//macro
 		}
 	}
@@ -294,7 +294,7 @@ namespace Graph::csr_graph{
 	// interface start here
 
 	node csr_weighted_graph::add_node_without_edge(){
-		return add_last_node_edge(NULL_EDGE);
+		return add_node_with_edge(NULL_EDGE);
 	}
 
 	node csr_weighted_graph::add_node_with_edge(edge new_edge){

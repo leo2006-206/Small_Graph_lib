@@ -39,6 +39,9 @@ concept is_edge = requires(node_t, edge_t e){
 	requires is_weight<decltype(e._weight)>;
 };
 
+
+
+
 template<typename function, typename node_t>
 concept node_function = requires(function){
 	requires is_node<node_t>;
@@ -54,13 +57,17 @@ concept edge_function = requires(function){
 	requires std::same_as<std::invoke_result_t<function, const node_t, const edge_t>, function_flow>;
 };
 
-template<typename function, typename node_t, typename weight>
-concept node_cost_function = requires(function){
+template<typename visitor, typename node_t, typename edge_t>
+concept non_cost_graph_visitor = requires(visitor v, const node_t n, const edge_t e){
 	requires is_node<node_t>;
-	requires is_weight<weight>;
-	requires std::invocable<function, const node_t, const weight>;
-	requires std::same_as<std::invoke_result_t<function, const node_t, const weight>, function_flow>;
+	requires is_edge<node_t, edge_t>;
+	requires std::is_empty_v<visitor>;
+	
+	{v.find_node(n)}	-> std::same_as<function_flow>;
+	{v.find_edge(n, e)}	-> std::same_as<function_flow>;
+	{v.end_node(n)}		-> std::same_as<function_flow>;
 };
+
 
 template<typename function, typename node_t, typename edge_t>
 concept cost_function = requires(function, edge_t e){
@@ -69,6 +76,39 @@ concept cost_function = requires(function, edge_t e){
 	requires std::invocable<function, const node_t, const edge_t>;
 	requires is_weight<std::invoke_result_t<function, const node_t, const edge_t>>;
 };
+
+template<typename function, typename node_t, typename weight_t>
+concept node_cost_function = requires(function){
+	requires is_node<node_t>;
+	requires is_weight<weight_t>;
+	requires std::invocable<function, const node_t, const weight_t>;
+	requires std::same_as<std::invoke_result_t<function, const node_t, const weight_t>, function_flow>;
+};
+
+template<typename function, typename node_t, typename edge_t, typename weight_t>
+concept edge_cost_function = requires(function){
+	requires is_node<node_t>;
+	requires is_edge<node_t, edge_t>;
+	requires is_weight<weight_t>;
+	requires std::invocable<function, const node_t, const edge_t, const weight_t>;
+	requires std::same_as<std::invoke_result_t<function, const node_t, const edge_t, const weight_t>, function_flow>;
+};
+
+template<typename visitor, typename node_t, typename edge_t>
+concept cost_graph_visitor = requires(
+	visitor v, const node_t n, const edge_t e,
+	const typename visitor::cost_type w){
+	requires is_node<node_t>;
+	requires is_edge<node_t, edge_t>;
+	requires is_weight<typename visitor::cost_type>;
+	requires std::is_empty_v<visitor>;
+	
+	{v.find_node(n, w)}		-> std::same_as<function_flow>;
+	{v.find_edge(n, w, e)}	-> std::same_as<function_flow>;
+	{v.cal_cost(n, w, e)}	-> std::same_as<typename visitor::cost_type>;
+	{v.end_node(n, w)}		-> std::same_as<function_flow>;
+};
+
 
 
 struct unused_node_func{
@@ -89,6 +129,14 @@ struct unused_edge_func{
 struct unused_node_cost_func{
 	template<typename node_t, typename cost_t>
 	requires is_node<node_t> && is_weight<cost_t>
+	constexpr auto operator()([[maybe_unused]] const node_t, [[maybe_unused]] const cost_t) const{
+		return function_flow::iteration_continue;
+	}
+};
+
+struct unused_edge_cost_func{
+	template<typename node_t, typename edge_t, typename cost_t>
+	requires is_node<node_t> && is_edge<node_t, edge_t> && is_weight<cost_t>
 	constexpr auto operator()([[maybe_unused]] const node_t, [[maybe_unused]] const cost_t) const{
 		return function_flow::iteration_continue;
 	}
