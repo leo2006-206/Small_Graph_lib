@@ -311,9 +311,11 @@ namespace Graph::csr_graph{
 		// If duplicated edge, keep the lower weight one
 		
 		auto current_node = static_cast<node>(_node_vec.size()) - 1;
-		for(auto& prev_edge : node_edges_range(current_node)){
-			if(prev_edge._dest_id == new_edge._dest_id && prev_edge._weight > new_edge._weight){
-				prev_edge._weight = new_edge._weight;
+		for(auto prev_edge : node_edges_range(current_node)){
+			if(prev_edge._dest_id == new_edge._dest_id){
+				if(prev_edge._weight > new_edge._weight){
+					prev_edge._weight = new_edge._weight;
+				}
 				return current_node;
 			}
 		}
