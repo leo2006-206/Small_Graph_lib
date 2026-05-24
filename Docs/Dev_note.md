@@ -12,6 +12,7 @@ This document serves as a tracking log for the development progress of the Graph
 |:-|:-:|
 |Date| Description|
 |23 May 2026| init|
+|24 May 2026| Added `cost_type` definition and decoupled `_weight` into cost_type.|
 
 |**struct** `csr_weighted_graph`||
 |:-|:-:|
@@ -63,17 +64,20 @@ This document serves as a tracking log for the development progress of the Graph
 |:-|:-:|
 |Date| Description|
 |23 May 2026| init|
+|24 May 2026| Optimized bitwise loop, removed `node_contains`, and changed to use `is_non_cost_graph_visitor`.|
 
 |**function** `csr_weighted_graph::bfs_loop`||
 |:-|:-:|
 |Date| Description|
 |23 May 2026| init|
+|24 May 2026| Optimized bitwise loop, removed `node_contains`, and changed to use `is_non_cost_graph_visitor`.|
 
 |**function** `csr_weighted_graph::ucs_loop`||
 |:-|:-:|
 |Date| Description|
 |23 May 2026| init|
 |24 May 2026| Updated method callbacks to accurately pass `current_cost` weight to `examine_edge` and `finish_node`.|
+|24 May 2026| Refactored loop to use `is_cost_graph_visitor` visitor pattern instead of three separate lambdas.|
 
 |**struct** `std::formatter<Graph::csr_graph::edge>`||
 |:-|:-:|
@@ -81,6 +85,32 @@ This document serves as a tracking log for the development progress of the Graph
 |23 May 2026| init|
 
 ## Module/Graph/Graph_function.cppm
+
+|**concept** `is_weighted_edge`||
+|:-|:-:|
+|Date| Description|
+|24 May 2026| init|
+
+|**concept** `is_non_cost_graph_visitor`||
+|:-|:-:|
+|Date| Description|
+|24 May 2026| init|
+
+|**concept** `is_cost_graph_visitor`||
+|:-|:-:|
+|Date| Description|
+|24 May 2026| init|
+
+|**struct** `default_non_cost_visitor`||
+|:-|:-:|
+|Date| Description|
+|24 May 2026| init|
+
+|**struct** `default_cost_visitor`||
+|:-|:-:|
+|Date| Description|
+|24 May 2026| init|
+
 |**enum class** `function_flow`||
 |:-|:-:|
 |Date| Description|

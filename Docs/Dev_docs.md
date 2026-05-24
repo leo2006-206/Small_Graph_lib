@@ -1,5 +1,5 @@
 # C++ Graph Library API Documentation
-**Date**: 23 May 2026
+**Date**: 24 May 2026 (Updated)
 
 ## Overview
 The `Graph` module (`Module/Graph`) provides a Compressed Sparse Row (CSR) based weighted graph implementation and several generic traversal algorithms (DFS, BFS, UCS). The graph nodes are represented by `std::uint32_t` IDs.
@@ -11,9 +11,11 @@ Alias for `std::uint32_t`, represents the node ID.
 
 ### `Graph::csr_graph::edge`
 Struct representing a directed weighted edge.
+- **Types**:
+  - `cost_type`: Alias for `std::uint32_t` representing the cost definition.
 - **Fields**:
   - `_dest_id` (`node`): Destination node ID.
-  - `_weight` (`std::uint32_t`): Edge weight.
+  - `_weight` (`cost_type`): Edge weight.
 
 ### `Graph::function::function_flow`
 Enum for loop control in the custom lambdas passed to traversal functions.
@@ -47,39 +49,22 @@ Enum for loop control in the custom lambdas passed to traversal functions.
 
 The graph provides generic loop methods for traversal algorithms. You can inject custom functors or lambdas to hook into the discovery, examination, and termination phases.
 
-### `dfs_loop` (Depth-First Search)
-Traverses the graph using Depth-First Search.
-
+### `dfs_loop` (Depth-First Search) & `bfs_loop` (Breadth-First Search)
+Traverses the graph using Depth-First or Breadth-First Search.
 - **Template Args**: 
-  - `discover_node`: `(node) -> function_flow`
-  - `examine_edge`: `(node, edge) -> function_flow`
-  - `finish_node`: `(node) -> function_flow`
+  - `non_cost_visitor`: A struct satisfying `is_non_cost_graph_visitor` concept (default `default_non_cost_visitor`).
 - **Args**:
-  - `start_id`: Node ID to begin DFS.
-  - `find_node`, `find_edge`, `end_node`: Callback functor instances or lambdas.
-
-### `bfs_loop` (Breadth-First Search)
-Traverses the graph using Breadth-First Search.
-
-- **Template Args**:
-  - `discover_node`: `(node) -> function_flow`
-  - `examine_edge`: `(node, edge) -> function_flow`
-  - `finish_node`: `(node) -> function_flow`
-- **Args**:
-  - `start_id`: Node ID to begin BFS.
-  - `find_node`, `find_edge`, `end_node`: Callback instances.
+  - `start_id`: Node ID to begin the search.
+  - `graph_visitor`: A visitor object containing `find_node(node)`, `find_edge(node, edge)`, and `end_node(node)` methods that return `function_flow`.
 
 ### `ucs_loop` (Uniform Cost Search)
 Traverses the graph using Uniform Cost Search (like Dijkstra's algorithm).
-
 - **Template Args**:
-  - `discover_node`: `(node, cost_type) -> function_flow`
-  - `examine_edge`: `(node, edge) -> function_flow`
-  - `compute_cost`: `(node, edge) -> cost_type` (Defaults to grabbing the edge's weight)
-  - `finish_node`: `(node) -> function_flow`
+  - `cost_visitor`: A struct satisfying `is_cost_graph_visitor` concept (default `default_cost_visitor`).
+  - Must define `cost_type` inside the visitor.
 - **Args**:
   - `start_id`: Node ID to begin UCS.
-  - `find_node`, `find_edge`, `cal_cost`, `end_node`: Callback instances.
+  - `graph_visitor`: A visitor object containing `find_node(node, cost)`, `find_edge(node, edge, cost)`, `cal_cost(node, cost, edge)`, and `end_node(node, cost)` methods.
 
 ---
 
@@ -106,16 +91,15 @@ int main() {
     // Add Node 2 without any outbound edges
     graph.add_node_without_edge();
 
-    // Perform BFS traversal starting from Node 0
-    auto on_discover = [](const Graph::csr_graph::node n) {
-        std::println("BFS Discovered Node: {}", n);
-        return gf::iteration_continue;
+    struct BfsVisitor : Graph::function::default_non_cost_visitor {
+        auto find_node(const Graph::csr_graph::node n) const {
+            std::println("BFS Discovered Node: {}", n);
+            return gf::iteration_continue;
+        }
     };
-    
-    graph.bfs_loop(
-        0, 
-        on_discover 
-    );
+
+    // Perform BFS traversal starting from Node 0
+    graph.bfs_loop(0, BfsVisitor{});
     
     return 0;
 }
