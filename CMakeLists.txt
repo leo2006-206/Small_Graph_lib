@@ -94,3 +94,8 @@ add_executable(temp Driver/temp.cpp)
 target_link_libraries(temp PRIVATE std_module)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET temp PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+add_executable(testing Driver/testing.cpp)
+target_link_libraries(testing PRIVATE std_module helper_lib graph_lib)
+# SPEEDUP FIX 4: Disabled LTO for daily development
+set_property(TARGET testing PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
