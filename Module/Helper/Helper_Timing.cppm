@@ -35,7 +35,7 @@ export	namespace Timing{
 	){
 		std::string duration = nice_duration_str(elapsed);
 
-		std::print("\n\x1b[36mDuration {}\t= {}\x1b[0m\n", text, duration);
+		std::print("\n\t\x1b[36mDuration {} = {}\x1b[0m\n", text, duration);
 	}
 
 	struct timer{
