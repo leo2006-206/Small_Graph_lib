@@ -7,16 +7,16 @@ export module Graph:csr_graph;
 
 import std;
 import :function;
+import :internal_DS;
 
-namespace gf = Graph::function;
 
 #define GRAPH_HANDLE_FLOW(flow_state) \
-    if((flow_state) == gf::function_flow::function_return)	return;\
-    else if((flow_state) == gf::function_flow::iteration_break)	break;\
-    else if((flow_state) == gf::function_flow::iteration_skip)	continue;\
-	//else if(flow == gf::function_flow::iteration_continue)
+    if((flow_state) == function_flow::function_return)	return;\
+    else if((flow_state) == function_flow::iteration_break)	break;\
+    else if((flow_state) == function_flow::iteration_skip)	continue;\
+	//else if(flow == function_flow::iteration_continue)
 
-export namespace Graph::csr_graph{
+export namespace Small_Graph::csr_graph{
 
 using node = std::uint32_t;
 
@@ -58,9 +58,9 @@ struct csr_weighted_graph{
 	node			add_node_with_edge(edge new_edge);
 	node			add_last_node_edge(edge new_edge);
 
-	template<typename non_cost_visitor = function::default_non_cost_visitor>
-	requires function::is_non_cost_graph_visitor<non_cost_visitor, node, edge>
-	void dfs_loop(node start_id, const non_cost_visitor graph_visitor = {}){
+	template<typename non_cost_visitor = default_non_cost_visitor>
+	requires is_non_cost_graph_visitor<non_cost_visitor, node, edge>
+	void dfs_loop(node start_id, non_cost_visitor& graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
@@ -94,7 +94,7 @@ struct csr_weighted_graph{
 				auto dest = current_edge._dest_id;
 				auto& bit_pos = visit_vec[dest >> 6];
 
-				if((bit_pos & cal_offset(dest)) == false && current_edge._dest_id != NULL_EDGE._dest_id){
+				if((bit_pos & cal_offset(dest)) == false){
 					bit_pos |= cal_offset(dest);
 					stack.emplace_back(dest);
 				}
@@ -105,9 +105,9 @@ struct csr_weighted_graph{
 		}
 	}
 
-	template<typename non_cost_visitor = function::default_non_cost_visitor>
-	requires function::is_non_cost_graph_visitor<non_cost_visitor, node, edge>
-	void bfs_loop(node start_id, const non_cost_visitor graph_visitor = {}){
+	template<typename non_cost_visitor = default_non_cost_visitor>
+	requires is_non_cost_graph_visitor<non_cost_visitor, node, edge>
+	void bfs_loop(node start_id, non_cost_visitor& graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
@@ -116,6 +116,10 @@ struct csr_weighted_graph{
 			return 1 << (id & 63);
 		};
 		
+		//could change to vector<node> with reserve(_node_vec.size())
+		//maintain a index as head of queue, head_index
+		//enqueue == emplace_back, dequeue == vector[head_index]; head_index++;
+		//but however measurement, no big performance diff compare to deque
 		std::queue<node, std::deque<node>> queue;
 		std::vector<std::uint64_t> visit_vec;
 		visit_vec.resize((_node_vec.size() >> 6) + 1, 0);
@@ -140,7 +144,7 @@ struct csr_weighted_graph{
 				auto dest = current_edge._dest_id;
 				auto& bit_pos = visit_vec[dest >> 6];
 
-				if((bit_pos & cal_offset(dest)) == false && current_edge._dest_id != NULL_EDGE._dest_id){
+				if((bit_pos & cal_offset(dest)) == false){
 					bit_pos |= cal_offset(dest);
 					queue.emplace(dest);
 				}
@@ -152,15 +156,18 @@ struct csr_weighted_graph{
 		}
 	}
 
-	template<typename cost_visitor = function::default_cost_visitor<edge::cost_type>>
-	requires function::is_cost_graph_visitor<cost_visitor, node, edge>
-	void ucs_loop(node start_id, const cost_visitor graph_visitor = {}){
+	template<typename cost_visitor = default_cost_visitor<edge::cost_type>>
+	requires is_cost_graph_visitor<cost_visitor, node, edge>
+	void ucs_loop(node start_id, cost_visitor& graph_visitor = {}){
 		if(!node_contains(start_id)){
 			return;
 		}
 		using cost_t = typename cost_visitor::cost_type;
 		using cost_pair = std::pair<cost_t, node>;
-		using heap_t = std::priority_queue<cost_pair, std::vector<cost_pair>, std::greater<cost_pair>>;
+		auto cost_cmp = [](const cost_pair& a, const cost_pair& b)->bool{
+			return a.first > b.first;
+		};
+		using heap_t = std::priority_queue<cost_pair, std::vector<cost_pair>, decltype(cost_cmp)>;
 
 		constexpr auto lowest = std::numeric_limits<cost_t>::lowest();
 
@@ -169,7 +176,7 @@ struct csr_weighted_graph{
 
 		cost_vec.resize(_node_vec.size(), std::numeric_limits<cost_t>::max());
 		vec_container.reserve(_node_vec.size() >> 1);
-		heap_t heap{std::greater<cost_pair>(), std::move(vec_container)};
+		heap_t heap{cost_cmp, std::move(vec_container)};
 
 		cost_vec[start_id] = lowest;
 		heap.emplace(lowest, start_id);
@@ -185,9 +192,9 @@ struct csr_weighted_graph{
 			auto flow_1 = graph_visitor.find_node(current_node, current_cost);
 			GRAPH_HANDLE_FLOW(flow_1)	//macro
 
-			for(const auto& current_edge : node_edges_range(current_node)){
+			for(const auto current_edge : node_edges_range(current_node)){
 				
-				if(!node_contains(current_edge._dest_id))	continue;
+				if(current_edge._dest_id == NULL_EDGE._dest_id)	continue;
 
 				auto flow_2 = graph_visitor.find_edge(current_node, current_edge, current_cost);
 				GRAPH_HANDLE_FLOW(flow_2)	//macro
@@ -208,7 +215,7 @@ struct csr_weighted_graph{
 
 }
 
-namespace Graph::csr_graph{
+namespace Small_Graph::csr_graph{
 
 	csr_weighted_graph::csr_weighted_graph(){
 		_node_vec.reserve(1ll << 8);
@@ -299,11 +306,11 @@ namespace Graph::csr_graph{
 }
 
 template <>
-struct std::formatter<Graph::csr_graph::edge>{
+struct std::formatter<Small_Graph::csr_graph::edge>{
 	constexpr auto parse(std::format_parse_context& ctx) {
         return ctx.begin();
     }
-	auto format(const Graph::csr_graph::edge& e, std::format_context& ctx) const {
+	auto format(const Small_Graph::csr_graph::edge& e, std::format_context& ctx) const {
         return std::format_to(ctx.out(), "(dest: {}, weight: {})", e._dest_id, e._weight);
     }
 };

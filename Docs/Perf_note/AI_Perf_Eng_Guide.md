@@ -38,34 +38,8 @@ Performance optimization in this project relies on a pipeline of gathering syste
 
 ---
 
-## 3. Benchmark Case Study 2: High-Frequency Searching & Heap Latency
-**Goal:** Optimize `dfs_loop` configured to return immediately upon finding a target (`SearchVisitor`). Loop executed 10,000 times to simulate high-throughput targeting.
-
-**A. Benchmarking Discovery**
-- *Command:* `bash ./run.sh testing stat`
-- *Observation:* `~61-93ms` for 10,000 iterations. Still extremely instruction-heavy `~1.6 Billion instructions`, even though the search hits a target and halts traversing extremely early.
-
-**B. ASM / Profiling Reasoning**
-- Generated dump: `objdump -d ./build_gcc/testing` and analyzed the `<main>:` block for `SearchVisitor`'s loop.
-- Discovered heavy clustering of standard libc allocation hooks:
-  - `call <_Znwm@plt>` (C++ `operator new`)
-  - `call <memset@plt>`
-  - `call <_ZdlPvm@plt>` (C++ `operator delete`)
-- *Reasoning:* `dfs_loop` internally declares `std::vector stack` and `std::vector visit_vec`. For 10,000 iterations, the kernel is forced to context-switch to allocate memory (`malloc`), map zeroes (`memset` from `.resize(N, 0)`), and immediately free (`free`). The heap memory binding took longer than the algorithmic search itself.
-
-**C. Bottleneck Addressing / Proposed Solution**
-- **Algorithm Context Hoisting:** Do not place standard library allocations inside functions intended for high-throughput calls. 
-- *Solution Design for future AI:* Refactor traversal loops to accept an optional struct containing the `stack` and `visit_vec` allocated *outside* the function. Instead of freeing memory, `stack.clear()` is called. To prevent resizing with `memset`, simply utilize a list of "touched nodes" to sequentially zero-out precisely the `visit_vec` elements that were flipped.
-
-**D. Result / Recording**
-- Analyzed limits to memory throughput rather than pathing algorithms.
-- *Recorded in: `Docs/DFS_BFS_02.md`.*
-
----
-
-## 4. Checklist for Future AI Modifying this Traversal Engine
+## 3. Checklist for Future AI Modifying this Traversal Engine
 When expanding graph features in this C++26 standard framework:
 1. [ ] Check if the instruction can be completed using primitive limits (`std::uint64_t` shifts) over Standard Library wrappers.
 2. [ ] Avoid calling small function wrappers in the deepest `for(auto edge : node_edges())` loop.
-3. [ ] If an algorithm will be executed repeatedly (e.g. Monte Carlo heuristics, Shortest Path queries), hoist array allocations to a global context buffer and clear state manually to avoid OS Heap Context Switches.
-4. [ ] Continually track `FRONTEND_BOUND` percentages. A fast backend is useless if the frontend cannot map the generated pointers and branches fast enough.
+3. [ ] Continually track `FRONTEND_BOUND` percentages. A fast backend is useless if the frontend cannot map the generated pointers and branches fast enough.

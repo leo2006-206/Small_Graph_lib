@@ -1,10 +1,60 @@
 module;
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
+
 export module Helper:Timing;
 
 import std;
 
 export	namespace Timing{
+
+	struct perf_control {
+		int ctl_fd{-1};
+
+		// Accept the path as a parameter, defaulting to your local fifo
+		perf_control(const char* fifo_path = "./perf_control.fifo") {
+			// Use O_NONBLOCK so the program doesn't hang if perf isn't running
+			ctl_fd = open(fifo_path, O_WRONLY | O_NONBLOCK);
+			
+			if (ctl_fd == -1) {
+				if (errno == ENXIO) {
+					// ENXIO specifically means no one is on the other end of the pipe.
+					// We don't exit; we just leave ctl_fd as -1 and run normally.
+					std::printf("Notice: perf is not listening. Profiling disabled.\n");
+				} else {
+					// A genuine error (e.g., the FIFO file doesn't exist at all)
+					std::perror("Failed to open control FIFO");
+					std::exit(1); 
+				}
+			}
+		}
+
+		~perf_control() {
+			if (ctl_fd != -1) {
+				close(ctl_fd);
+			}
+		}
+
+		void start() {
+			if (ctl_fd == -1) return; // Do nothing if perf isn't attached
+
+			auto bytes_written = write(ctl_fd, "enable\n", 7);
+			if (bytes_written < 0) {
+				std::perror("Failed to write 'enable' to control FIFO");
+			}
+		}
+
+		void finish() {
+			if (ctl_fd == -1) return; // Do nothing if perf isn't attached
+
+			auto bytes_written = write(ctl_fd, "disable\n", 8);
+			if (bytes_written < 0) {
+				std::perror("Failed to write 'disable' to control FIFO");
+			}
+		}
+	};
 
 	std::string	nice_duration_str(
 		const std::chrono::nanoseconds duration
@@ -72,5 +122,4 @@ export	namespace Timing{
         std::invoke(function, argument...);
 
     }
-
 }
