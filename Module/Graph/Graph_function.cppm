@@ -39,12 +39,8 @@ concept is_edge = requires(node_t, edge_t e){
 
 template<typename node_t, typename edge_t>
 concept is_weighted_edge = requires(node_t, edge_t e){
-	requires is_node<node_t>;
-	requires std::is_trivially_copyable_v<edge_t>;
-	e._dest_id;
+	requires is_edge<node_t, edge_t>;
 	e._weight;
-
-	requires std::same_as<node_t, decltype(e._dest_id)>;
 	requires is_weight<decltype(e._weight)>;
 };
 

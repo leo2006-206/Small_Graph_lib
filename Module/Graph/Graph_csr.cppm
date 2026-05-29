@@ -1,13 +1,9 @@
 module;
 
-#include <cstdint>
-#include <cassert>
-
 export module Graph:csr_graph;
 
 import std;
 import :function;
-import :internal_DS;
 
 
 #define GRAPH_HANDLE_FLOW(flow_state) \
@@ -269,8 +265,6 @@ namespace Small_Graph::csr_graph{
 	std::span<edge> csr_weighted_graph::edges_range(){
 		return {_edge_vec};
 	}
-
-	// interface start here
 
 	node csr_weighted_graph::add_node_without_edge(){
 		return add_node_with_edge(NULL_EDGE);

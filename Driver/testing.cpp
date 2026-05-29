@@ -187,29 +187,29 @@ void stat_v(Small_Graph::csr_weighted_graph& g){
 	// 	std::print("DFS Stat: Node count: {}, Edge count: {}\n", v.node_count, v.edge_count);
 	// }
 
-	// {
-	// 	Timing::print_timer _;
-	// 	StatVisitor v;
-	// 	auto s = g._node_vec.size() >> 2;
-	// 	for(std::size_t i = 0; i < s; ++i){
-	// 		v.node_count = 0; v.edge_count = 0;
-	// 		g.bfs_loop(i, v);
-	// 	}
-	// 	std::print("BFS Stat: Node count: {}, Edge count: {}\n", v.node_count, v.edge_count);
-	// }
-
 	{
-		std::print("\n=== UCS Tests ===\n");
 		Timing::print_timer _;
-		CostStatVisitor v;
+		StatVisitor v;
 		auto s = g._node_vec.size() >> 2;
 		for(std::size_t i = 0; i < s; ++i){
-			v.node_count = 0; v.edge_count = 0; v.total_cost = 0;
-			g.ucs_loop(i, v);
+			v.node_count = 0; v.edge_count = 0;
+			g.bfs_loop(i, v);
 		}
-		std::print("UCS Stat: Node count: {}, Edge count: {}, Total Cost Evaluated: {}\n", 
-            v.node_count, v.edge_count, v.total_cost);
+		std::print("BFS Stat: Node count: {}, Edge count: {}\n", v.node_count, v.edge_count);
 	}
+
+	// {
+	// 	std::print("\n=== UCS Tests ===\n");
+	// 	Timing::print_timer _;
+	// 	CostStatVisitor v;
+	// 	auto s = g._node_vec.size() >> 2;
+	// 	for(std::size_t i = 0; i < s; ++i){
+	// 		v.node_count = 0; v.edge_count = 0; v.total_cost = 0;
+	// 		g.ucs_loop(i, v);
+	// 	}
+	// 	std::print("UCS Stat: Node count: {}, Edge count: {}, Total Cost Evaluated: {}\n", 
+    //         v.node_count, v.edge_count, v.total_cost);
+	// }
 }
 
 void search_v(Small_Graph::csr_weighted_graph& g){
@@ -313,7 +313,7 @@ int main(void){
 	Timing::perf_control pc;
 
 	// auto g = load_graph_from_file("./Dataset/advogato/advogato.edges");
-	auto g = ER_random_graph(10000, 0.2f);
+	auto g = ER_random_graph(10000, 0.05f);
 	print_graph_stat(g);
 
 	pc.start();
