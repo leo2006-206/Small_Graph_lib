@@ -17,6 +17,8 @@ enum class function_flow : std::uint8_t{
 	// break current loop
 };
 
+// csr graph here
+
 template<typename node_t>
 concept is_node = requires (node_t) {
 	requires std::is_trivially_copyable_v<node_t>;
@@ -25,7 +27,7 @@ concept is_node = requires (node_t) {
 
 template<typename weight_t>
 concept is_weight = requires (weight_t) {
-	requires std::is_floating_point_v<weight_t> || std::is_integral_v<weight_t>;
+	requires std::is_integral_v<weight_t>;
 };
 
 template<typename node_t, typename edge_t>
@@ -43,6 +45,26 @@ concept is_weighted_edge = requires(node_t, edge_t e){
 	e._weight;
 	requires is_weight<decltype(e._weight)>;
 };
+
+// dynamic graph here
+
+// template<typename dyn_node_t>
+// concept is_dyn_node = requires (dyn_node_t n){
+// 	{n._source} -> std::convertible_to<std::uint64_t>;
+// };
+
+// template<typename dyn_edge_t>
+// concept is_dyn_edge = requires (dyn_edge_t e){
+// 	{e._dest} -> std::convertible_to<std::uint64_t>;
+// };
+
+// template<typename dyn_w_edge_t>
+// concept is_dyn_weighted_edge = requires (dyn_w_edge_t e){
+// 	requires is_dyn_edge<dyn_w_edge_t>;
+// 	{e.get_weight()} -> is_weight<>;
+// };
+
+// looping visitor concept
 
 template<typename visitor, typename node_t, typename edge_t>
 concept is_non_cost_graph_visitor = requires(visitor v, const node_t n, const edge_t e){
