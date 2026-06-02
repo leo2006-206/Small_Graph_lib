@@ -5,15 +5,32 @@ export module Graph:dynamic_graph;
 import std;
 import :function;
 
+struct empty_base{
+	explicit empty_base() = default;
+};
+
 export namespace Small_Graph::dynamic_graph{
 	using node_id_t = std::uint64_t;
+	using weight_t	= std::uint64_t;
 
-	constexpr node_id_t get_invalid_node(){
+	static_assert(
+		std::is_integral_v<node_id_t> && std::is_integral_v<weight_t>,
+		"Require both to be integer for compression"
+	);
+
+	consteval node_id_t get_invalid_node(){
 		return std::numeric_limits<node_id_t>::max();
+	}
+	consteval weight_t	get_invalid_weight(){
+		return std::numeric_limits<weight_t>::max();
 	}
 
 	struct alone_edge;
+	struct alone_edge_w;
+
 	struct dyn_node;
+
+
 	struct dyn_dir_graph;
 }
 
@@ -33,12 +50,30 @@ struct alone_edge{
 	node_id_t	_dest;
 
 	alone_edge() = delete;
-	constexpr alone_edge(node_id_t source, node_id_t dest)
+
+	explicit constexpr alone_edge(node_id_t source, node_id_t dest)
 	: _source(source), _dest(dest){}
 
-	constexpr static alone_edge get_invalid(){
-		constexpr auto lim = get_invalid_node();
-		return {lim, lim};
+	consteval static alone_edge get_invalid(){
+		constexpr auto lim_n = get_invalid_node();
+		return alone_edge{lim_n, lim_n};
+	}
+};
+
+struct alone_edge_w{
+	node_id_t	_source;
+	node_id_t	_dest;
+	weight_t	_weight;
+
+	alone_edge_w() = delete;
+
+	explicit constexpr alone_edge_w(node_id_t source, node_id_t dest, weight_t wei)
+	: _source(source), _dest(dest), _weight(wei){}
+
+	constexpr static alone_edge_w get_invalid(){
+		auto lim_n = get_invalid_node();
+		auto lim_w = get_invalid_weight();
+		return alone_edge_w{lim_n, lim_n, lim_w};
 	}
 };
 
@@ -49,7 +84,7 @@ struct dyn_node{
 	edge_vec_t	_edge_vec;
 
 	dyn_node() = delete;
-	constexpr dyn_node(node_id_t id, std::size_t reserve_size = 64)
+	explicit constexpr dyn_node(node_id_t id, std::size_t reserve_size = 64)
 	: _id(id), _edge_vec(){
 		_edge_vec.reserve(reserve_size);
 	};
@@ -65,8 +100,64 @@ struct dyn_node{
 
 	bool						insert_edge(node_id_t dest);
 	bool						insert_edge(node_id_t dest, std::size_t& num_edge_ref);
+
 	bool						remove_edge(node_id_t dest);
+	bool						remove_edge(node_id_t dest, std::size_t& num_edge_ref);
+
 	void						sort_edge();
+	
+	void						reserve(std::size_t reserve_size);
+	void						clear();
+	void						free();
+};
+
+struct dyn_node_w{
+	using edge_vec_t	= std::vector<node_id_t /*edge dest*/>;
+	using weight_vec_t	= std::vector<weight_t /*weight*/>;
+	using edge_wei_zip_t= std::ranges::zip_view<std::span<const node_id_t>, std::span<const weight_t>>;
+
+	node_id_t		_id;
+	edge_vec_t		_edge_vec;
+	weight_vec_t	_wei_vec;
+
+	dyn_node_w() = delete;
+	explicit constexpr dyn_node_w(node_id_t id, std::size_t reserve_size = 64)
+	: _id(id), _edge_vec(), _wei_vec(){
+		_edge_vec.reserve(reserve_size);
+		_wei_vec.reserve(reserve_size);
+	};
+
+	constexpr bool operator==(const dyn_node_w& other) const{
+		return (_id == other._id);
+	}
+
+	std::pair<bool, weight_t>	edge_contains(node_id_t dest) const;
+	bool						edge_contains(node_id_t dest, weight_t wei) const;
+
+	std::span<node_id_t>		edges_span();
+	std::span<const node_id_t>	edges_span() const;
+
+	std::span<weight_t>			weights_span();
+	std::span<const weight_t>	weights_span() const;
+
+	edge_wei_zip_t				edge_wei_zip_range() const;//const by design
+
+	bool						insert_edge(node_id_t dest, weight_t wei);
+	bool						insert_edge(node_id_t dest, weight_t wei, std::size_t& num_edge_ref);
+
+	bool						update_edge(node_id_t dest, weight_t wei);
+	bool						update_insert_edge(node_id_t dest, weight_t wei);
+	bool						update_insert_edge(node_id_t dest, weight_t wei, std::size_t& num_edge_ref);
+
+	bool						remove_edge(node_id_t dest);
+	bool						remove_edge(node_id_t dest, std::size_t& num_edge_ref);
+	bool						remove_edge(node_id_t dest, weight_t wei);
+	bool						remove_edge(node_id_t dest, weight_t wei, std::size_t& num_edge_ref);
+
+	void						sort_edge();
+	void						reserve(std::size_t reserve_size);
+	void						clear();
+	void						free();
 };
 
 struct dyn_dir_graph{
