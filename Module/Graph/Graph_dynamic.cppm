@@ -95,6 +95,9 @@ struct dyn_dir_graph{
 	using edge_crange_t			= std::ranges::subrange<std::ranges::iterator_t<std::span<const node_id_t>>>; //clang didnt support const_iterator
 	using edge_srange_t			= edge_crange_t;
 
+	dyn_dir_graph(std::size_t reserve_size = 0){
+		_node_map.reserve(reserve_size);
+	}
 
 	node_map_t					_node_map{};
 	std::size_t					_num_edge{};
