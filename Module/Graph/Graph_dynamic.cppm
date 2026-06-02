@@ -6,22 +6,72 @@ import std;
 import :function;
 
 export namespace Small_Graph::dynamic_graph{
-	using node_id_t = std::uint64_t;
+	using node_id_t		= std::int64_t;
 
-	constexpr node_id_t get_invalid_node(){
-		return std::numeric_limits<node_id_t>::max();
-	}
+	static_assert(
+		std::is_signed_v<node_id_t> && std::is_integral_v<node_id_t>,
+		"node_dir_id_t required to be signed, where negative = outgoing edge, positive = incoming edge"
+	);
+
+	// negative = outgoing edge
+	// positive = incoming edge
+	// because 0 == -0, cant represent negative/positive => outgoing/incoming
+	// so 0 is invalid value, in both outgoing and incoming
+	// so add 1 to id, that 0 + 1 = 1, then -1/+1
+	// so -1 => outgoing edge to	0
+	// so +1 => incoming edge form	0
+
+	enum class edge_dir_t : bool{
+		outgoing_flag,
+		incoming_flag
+	};
+	constinit edge_dir_t int_flag = edge_dir_t::incoming_flag;
+	// as id or size_t, aka int64_t
+
+	struct node_dir_id_t{
+		private:
+		node_id_t _raw_id{0}; 
+
+		public:
+		constexpr node_dir_id_t() = default;
+		constexpr node_dir_id_t(edge_dir_t flag, node_id_t id){
+			if (flag == edge_dir_t::outgoing_flag){
+				_raw_id = -(id + 1);
+			}
+			else/* if(flag == edge_dir_t::incoming_flag)*/{
+				_raw_id = +(id + 1);
+			}
+		}
+
+		constexpr bool operator==(const node_dir_id_t&) const = default;
+		constexpr bool is_valid() const{
+			return (_raw_id != 0);
+		}
+		constexpr std::pair<edge_dir_t, node_id_t> unpack() const{
+			if(_raw_id > 0){
+				return {edge_dir_t::incoming_flag, _raw_id - 1};
+			}
+			else if(_raw_id < 0){
+				return {edge_dir_t::outgoing_flag, std::abs(_raw_id) - 1};
+			}
+			return {{}/*invalid in both direction*/, 0};
+		}
+		constexpr node_id_t unpack_int(){
+			// if this node_dir_id only store the node id
+			return _raw_id - 1;
+		}
+	};
 
 	struct alone_edge;
-	struct dyn_node;
+	struct dyn_dir_node;
 	struct dyn_dir_graph;
 }
 
 namespace std{
 
 template<>
-struct hash<Small_Graph::dynamic_graph::dyn_node>{
-	std::size_t operator()(const Small_Graph::dynamic_graph::dyn_node& node) const noexcept;
+struct hash<Small_Graph::dynamic_graph::dyn_dir_node>{
+	std::size_t operator()(const Small_Graph::dynamic_graph::dyn_dir_node& node) const noexcept;
 };
 
 }
@@ -36,29 +86,51 @@ struct alone_edge{
 	constexpr alone_edge(node_id_t source, node_id_t dest)
 	: _source(source), _dest(dest){}
 
-	constexpr static alone_edge get_invalid(){
-		constexpr auto lim = get_invalid_node();
-		return {lim, lim};
-	}
+	// constexpr static alone_edge get_invalid(){
+	// 	constexpr auto lim = get_invalid_node();
+	// 	return {lim, lim};
+	// }
 };
 
-struct dyn_node{
-	using edge_vec_t = std::vector<node_id_t /*edge dest*/>;
+struct dyn_dir_node{
+	using edge_vec_t = std::vector<node_dir_id_t /*edge dest*/>;
 
-	node_id_t	_id;
 	edge_vec_t	_edge_vec;
+	std::size_t	_num_outgoing;
+	// id				= edge_vex[0].unpack_int();
+	// num total edge	= edge_vec.size()
+	// num outgoing		= _num_outgoing
+	// num incoming 	= edge_vec.size() - edge_vec[1]
 
-	dyn_node() = delete;
-	constexpr dyn_node(node_id_t id) : _id(id){};
+	dyn_dir_node() = delete;
+	constexpr dyn_dir_node(node_id_t id, std::size_t reserve_size = 64)
+	: _edge_vec(){
+		_edge_vec.reserve(reserve_size);
+		_edge_vec.emplace_back(int_flag, id);
+		// storing the actaul id, no direction
+	};
 
-	constexpr bool operator==(const dyn_node& other) const{
-		return (_id == other._id);
+
+	constexpr bool operator==(const dyn_dir_node& other) const{
+		return (_edge_vec[0] == other._edge_vec[0]);
 	}
 
-	bool						edge_contains(node_id_t dest) const;
+	node_id_t&						id();
+	const node_id_t&				id() const;
 
-	std::span<node_id_t>		edges_span();
-	std::span<const node_id_t>	edges_span() const;
+	std::size_t						degree() const;
+	std::size_t						outgoing_degree() const;
+	std::size_t						incoming_degree() const;
+
+	bool							edge_contains(edge_dir_t flag, node_id_t dest) const;
+	bool							edge_outgoing_contains(node_id_t dest) const;
+	bool							edge_incoming_contains(node_id_t dest) const;
+
+	std::span<node_dir_id_t>		edges_span();
+	std::span<const node_dir_id_t>	edges_span() const;
+	auto							edges_outgoing_range(); //range outgoing edge
+	const auto						edges_outgoing_range() const; //const range outgoing edge
+	const auto						edges_outgoing_range_sized() const;//const sized range outgoing edge
 
 	bool						insert_edge(node_id_t dest);
 	bool						remove_edge(node_id_t dest);
@@ -66,13 +138,13 @@ struct dyn_node{
 };
 
 struct dyn_dir_graph{
-	using node_t				= dyn_node;
+	using node_t				= dyn_dir_node;
 	using node_map_t			= std::unordered_map<
 		node_id_t,	//key
-		dyn_node,	//value
+		dyn_dir_node,	//value
 		std::hash<node_id_t>,
 		std::equal_to<node_id_t>,
-		std::allocator<std::pair<const node_id_t, dyn_node>>
+		std::allocator<std::pair<const node_id_t, dyn_dir_node>>
 	>;
 	using node_map_it_t			= node_map_t::iterator;
 	using node_map_cit_t		= node_map_t::const_iterator;
@@ -135,43 +207,24 @@ struct dyn_dir_graph{
 
 namespace Small_Graph::dynamic_graph {
 
-// dyn_node start here
+// dyn_dir_node start here
 
-bool dyn_node::edge_contains(node_id_t dest) const{
-	for(const auto edge_dest : _edge_vec){
-		if(dest == edge_dest){
-			return true;
-		}
-	}
-	return false;
+bool dyn_dir_node::edge_contains(node_id_t dest) const{
 }
 
-std::span<node_id_t> dyn_node::edges_span(){
-	return (_edge_vec);
+std::span<node_id_t> dyn_dir_node::edges_span(){
 }
 
-std::span<const node_id_t> dyn_node::edges_span() const{
-	return (_edge_vec);
+std::span<const node_id_t> dyn_dir_node::edges_span() const{
 }
 
-bool dyn_node::insert_edge(node_id_t dest){
-	if(dest == _id || edge_contains(dest) == true){
-		return false;
-	}
-	_edge_vec.emplace_back(dest);
-	return true;
+bool dyn_dir_node::insert_edge(node_id_t dest){
 }
 
-bool dyn_node::remove_edge(node_id_t dest){
-	return (std::erase(_edge_vec, dest) > 0);
+bool dyn_dir_node::remove_edge(node_id_t dest){
 }
 
-void dyn_node::sort_edge(){
-	auto cmp = [](node_id_t a, node_id_t b)-> bool{
-		return a > b;
-	};
-
-	std::ranges::sort(_edge_vec, cmp);
+void dyn_dir_node::sort_edge(){
 }
 
 // dyn_dir_graph start here
@@ -328,7 +381,7 @@ std::vector<alone_edge> dyn_dir_graph::insert_alone_edges(const R& edges_range, 
 }
 
 std::size_t
-std::hash<Small_Graph::dynamic_graph::dyn_node>::operator()
-(const Small_Graph::dynamic_graph::dyn_node& node) const noexcept{
-	return std::hash<Small_Graph::dynamic_graph::node_id_t>{}(node._id);
+std::hash<Small_Graph::dynamic_graph::dyn_dir_node>::operator()
+(const Small_Graph::dynamic_graph::dyn_dir_node& node) const noexcept{
+	return std::hash<Small_Graph::dynamic_graph::dyn_dir_node::edge_vec_t>{}();
 }

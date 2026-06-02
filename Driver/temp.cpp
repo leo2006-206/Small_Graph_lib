@@ -25,13 +25,12 @@ int main(void){
 
 	// std::print("vector is {}\n", v);
 
-	// Create a completely empty dummy hasher just to satisfy the template for sizeof
-	struct dummy_hasher {
-		std::size_t operator()(const std::pair<int, int>&) const { return 0; }
-	};
+	std::set<int> s;
 
-	// Then change your print line to this:
-	std::print("\nset = {}, map = {}", 
-		sizeof(std::unordered_set<std::pair<int, int>, dummy_hasher>), 
-		sizeof(std::unordered_map<int, int>));
+	s.emplace(std::numeric_limits<int>::max());
+	s.emplace(std::numeric_limits<int>::min());
+
+	for(auto i : s){
+		std::cout<<(std::bitset<32>(i))<<"\t"<<i<<"\n";
+	}
 }
