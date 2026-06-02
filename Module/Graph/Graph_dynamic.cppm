@@ -49,7 +49,10 @@ struct dyn_node{
 	edge_vec_t	_edge_vec;
 
 	dyn_node() = delete;
-	constexpr dyn_node(node_id_t id) : _id(id){};
+	constexpr dyn_node(node_id_t id, std::size_t reserve_size = 64)
+	: _id(id), _edge_vec(){
+		_edge_vec.reserve(reserve_size);
+	};
 
 	constexpr bool operator==(const dyn_node& other) const{
 		return (_id == other._id);
@@ -61,6 +64,7 @@ struct dyn_node{
 	std::span<const node_id_t>	edges_span() const;
 
 	bool						insert_edge(node_id_t dest);
+	bool						insert_edge(node_id_t dest, std::size_t& num_edge_ref);
 	bool						remove_edge(node_id_t dest);
 	void						sort_edge();
 };
@@ -92,12 +96,15 @@ struct dyn_dir_graph{
 	using edge_srange_t			= edge_crange_t;
 
 
-	node_map_t					_node_map;
+	node_map_t					_node_map{};
+	std::size_t					_num_edge{};
 
 	bool						node_contains(node_id_t id) const;
 	bool						edge_contains(node_id_t source, node_id_t dest) const;
 
 	std::size_t					node_size() const;
+	std::size_t					edge_size() const;//may incorrect
+	std::size_t					edge_size_cache();//O(N) that sum up the num edge
 
 	node_map_it_t				begin();
 	node_map_it_t				end();
@@ -162,6 +169,14 @@ bool dyn_node::insert_edge(node_id_t dest){
 	return true;
 }
 
+bool dyn_node::insert_edge(node_id_t dest, std::size_t& num_edge_ref){
+	if(insert_edge(dest) == true){
+		num_edge_ref += 1;
+		return true;
+	}
+	return false;
+}
+
 bool dyn_node::remove_edge(node_id_t dest){
 	return (std::erase(_edge_vec, dest) > 0);
 }
@@ -191,6 +206,16 @@ bool dyn_dir_graph::edge_contains(node_id_t source, node_id_t dest) const{
 
 std::size_t dyn_dir_graph::node_size() const{
 	return _node_map.size();
+}
+std::size_t					dyn_dir_graph::edge_size() const{
+	return _num_edge;
+}
+std::size_t					dyn_dir_graph::edge_size_cache(){
+	_num_edge = 0;
+	for(const auto& node : node_range()){
+		_num_edge += node._edge_vec.size();
+	}
+	return _num_edge;
 }
 
 dyn_dir_graph::node_map_it_t dyn_dir_graph::begin(){
@@ -275,17 +300,19 @@ dyn_dir_graph::node_t* dyn_dir_graph::insert_node(node_id_t id){
 }
 
 std::pair<bool, std::size_t> dyn_dir_graph::remove_node(node_id_t id){
-	auto removed = _node_map.erase(id);
-	if(removed == 0){
-		return {false, {}};
+	auto it = _node_map.find(id);
+	if(it == _node_map.end()){
+		return {false, 0};
 	}
+	std::size_t num_outgoing_edge{it->second._edge_vec.size()};
+	_node_map.erase(it);
 
-	std::size_t num_incoming_edge{};
+	std::size_t num_removed_edge{num_outgoing_edge};
 	for(auto& node : node_range()){
-		num_incoming_edge += static_cast<std::size_t>(node.remove_edge(id));
+		num_removed_edge += static_cast<std::size_t>(node.remove_edge(id));
 	}
 
-	return {true, num_incoming_edge};
+	return {true, num_removed_edge};
 }
 
 bool dyn_dir_graph::insert_edge(node_id_t source, node_id_t dest){
@@ -293,7 +320,11 @@ bool dyn_dir_graph::insert_edge(node_id_t source, node_id_t dest){
 	if(ptr == nullptr){
 		return false;
 	}
-	return ptr->insert_edge(dest);
+	if(ptr->insert_edge(dest) == true){
+		_num_edge += 1;
+		return true;
+	};
+	return false;
 }
 
 bool dyn_dir_graph::remove_edge(node_id_t source, node_id_t dest){
@@ -301,12 +332,20 @@ bool dyn_dir_graph::remove_edge(node_id_t source, node_id_t dest){
 	if(ptr == nullptr){
 		return false;
 	}
-	return ptr->remove_edge(dest);
+	if(ptr->remove_edge(dest) == true){
+		_num_edge -= 1;
+		return true;
+	};
+	return false;
 }
 
 bool dyn_dir_graph::insert_edge_with_node(node_id_t source, node_id_t dest){
 	auto [it, inserted] = _node_map.try_emplace(source, source);
-	return it->second.insert_edge(dest);
+	if(it->second.insert_edge(dest) == true){
+		_num_edge += 1;
+		return true;
+	};
+	return false;
 }
 
 template <std::ranges::input_range R>
