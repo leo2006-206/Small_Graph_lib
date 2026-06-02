@@ -79,7 +79,9 @@ struct dyn_dir_graph{
 
 	using node_map_pair_range_t	= std::ranges::subrange<node_map_t::iterator>;
 	using node_map_pair_crange_t= std::ranges::subrange<node_map_t::const_iterator>;
-	using node_map_pair_srange_t= node_map_pair_crange_t;	//sized range, const by design
+	using node_map_pair_srange_t= std::ranges::subrange<
+		node_map_t::const_iterator, node_map_t::const_iterator,
+		std::ranges::subrange_kind::sized>;	//sized range, const by design
 
 	using node_range_t			= std::ranges::elements_view<node_map_pair_range_t, 1>;
 	using node_crange_t			= std::ranges::elements_view<node_map_pair_crange_t, 1>;
@@ -101,10 +103,6 @@ struct dyn_dir_graph{
 	node_map_it_t				end();
 	node_map_cit_t				cbegin();
 	node_map_cit_t				cend();
-
-	node_map_pair_range_t		pair_range();
-	node_map_pair_crange_t		pair_range() const;
-	node_map_pair_srange_t		pair_range_sized() const;
 
 	node_range_t				node_range();
 	node_crange_t				node_range() const;
@@ -181,6 +179,7 @@ void dyn_node::sort_edge(){
 bool dyn_dir_graph::node_contains(node_id_t id) const{
 	return (access_node_ptr(id) == nullptr);
 }
+
 bool dyn_dir_graph::edge_contains(node_id_t source, node_id_t dest) const{
 	const auto ptr = access_node_ptr(source);
 	if(ptr == nullptr){
@@ -189,39 +188,39 @@ bool dyn_dir_graph::edge_contains(node_id_t source, node_id_t dest) const{
 
 	return ptr->edge_contains(dest);
 }
+
 std::size_t dyn_dir_graph::node_size() const{
 	return _node_map.size();
 }
+
 dyn_dir_graph::node_map_it_t dyn_dir_graph::begin(){
 	return _node_map.begin();
 }
+
 dyn_dir_graph::node_map_it_t dyn_dir_graph::end(){
 	return _node_map.end();
 }
+
 dyn_dir_graph::node_map_cit_t dyn_dir_graph::cbegin(){
 	return _node_map.cbegin();
 }
+
 dyn_dir_graph::node_map_cit_t dyn_dir_graph::cend(){
 	return _node_map.cend();
 }
-dyn_dir_graph::node_map_pair_range_t dyn_dir_graph::pair_range(){
-	return std::ranges::subrange{_node_map.begin(), _node_map.end()};
-}
-dyn_dir_graph::node_map_pair_crange_t dyn_dir_graph::pair_range() const{
-	return std::ranges::subrange{_node_map.cbegin(), _node_map.cend()};
-}
-dyn_dir_graph::node_map_pair_srange_t dyn_dir_graph::pair_range_sized() const{
-	return std::ranges::subrange{_node_map.cbegin(), _node_map.cend(), _node_map.size()};
-}
+
 dyn_dir_graph::node_range_t dyn_dir_graph::node_range(){
-	return pair_range() | std::views::values;
+	return std::ranges::subrange{_node_map.begin(), _node_map.end()} | std::views::values;
 }
+
 dyn_dir_graph::node_crange_t dyn_dir_graph::node_range() const{
-	return pair_range() | std::views::values;
+	return std::ranges::subrange{_node_map.cbegin(), _node_map.cend()} | std::views::values;
 }
+
 dyn_dir_graph::node_srange_t dyn_dir_graph::node_range_sized() const{
-	return pair_range_sized() | std::views::values;
+	return std::ranges::subrange{_node_map.cbegin(), _node_map.cend(), _node_map.size()} | std::views::values;
 }
+
 std::span<node_id_t> dyn_dir_graph::node_edges_span(node_id_t id){
 	auto ptr = access_node_ptr(id);
 	if(ptr == nullptr){
@@ -229,6 +228,7 @@ std::span<node_id_t> dyn_dir_graph::node_edges_span(node_id_t id){
 	}
 	return ptr->edges_span();
 }
+
 std::span<const node_id_t> dyn_dir_graph::node_edges_span(node_id_t id) const{
 	const auto ptr = access_node_ptr(id);
 	if(ptr == nullptr){
@@ -236,16 +236,20 @@ std::span<const node_id_t> dyn_dir_graph::node_edges_span(node_id_t id) const{
 	}
 	return ptr->edges_span();
 }
+
 dyn_dir_graph::edge_range_t dyn_dir_graph::node_edges_range(node_id_t id){
 	return std::ranges::subrange{node_edges_span(id)};
 }
+
 dyn_dir_graph::edge_crange_t dyn_dir_graph::node_edges_range(node_id_t id) const{
 	return std::ranges::subrange{node_edges_span(id)};
 }
+
 dyn_dir_graph::edge_srange_t dyn_dir_graph::node_edges_range_sized(node_id_t id) const{
 	const auto edge_span = node_edges_span(id);
 	return std::ranges::subrange{edge_span, edge_span.size()};
 }
+
 dyn_dir_graph::node_t* dyn_dir_graph::access_node_ptr(node_id_t id){
 	auto it = _node_map.find(id);
 	if(it == _node_map.end()){
@@ -253,6 +257,7 @@ dyn_dir_graph::node_t* dyn_dir_graph::access_node_ptr(node_id_t id){
 	}
 	return &(it->second);
 }
+
 const dyn_dir_graph::node_t* dyn_dir_graph::access_node_ptr(node_id_t id) const{
 	const auto it = _node_map.find(id);
 	if(it == _node_map.cend()){
@@ -260,6 +265,7 @@ const dyn_dir_graph::node_t* dyn_dir_graph::access_node_ptr(node_id_t id) const{
 	}
 	return &(it->second);
 }
+
 dyn_dir_graph::node_t* dyn_dir_graph::insert_node(node_id_t id){
 	auto [it, inserted] = _node_map.try_emplace(id, id);
 	if(inserted){
@@ -267,6 +273,7 @@ dyn_dir_graph::node_t* dyn_dir_graph::insert_node(node_id_t id){
 	}
 	return nullptr;
 }
+
 std::pair<bool, std::size_t> dyn_dir_graph::remove_node(node_id_t id){
 	auto removed = _node_map.erase(id);
 	if(removed == 0){
@@ -280,6 +287,7 @@ std::pair<bool, std::size_t> dyn_dir_graph::remove_node(node_id_t id){
 
 	return {true, num_incoming_edge};
 }
+
 bool dyn_dir_graph::insert_edge(node_id_t source, node_id_t dest){
 	auto ptr = access_node_ptr(source);
 	if(ptr == nullptr){
@@ -287,6 +295,7 @@ bool dyn_dir_graph::insert_edge(node_id_t source, node_id_t dest){
 	}
 	return ptr->insert_edge(dest);
 }
+
 bool dyn_dir_graph::remove_edge(node_id_t source, node_id_t dest){
 	auto ptr = access_node_ptr(source);
 	if(ptr == nullptr){
@@ -294,10 +303,12 @@ bool dyn_dir_graph::remove_edge(node_id_t source, node_id_t dest){
 	}
 	return ptr->remove_edge(dest);
 }
+
 bool dyn_dir_graph::insert_edge_with_node(node_id_t source, node_id_t dest){
 	auto [it, inserted] = _node_map.try_emplace(source, source);
 	return it->second.insert_edge(dest);
 }
+
 template <std::ranges::input_range R>
 requires std::same_as<std::ranges::range_value_t<R>, alone_edge>
 std::vector<alone_edge> dyn_dir_graph::insert_alone_edges(const R& edges_range, std::size_t reserve_size){
