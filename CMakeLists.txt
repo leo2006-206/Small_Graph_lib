@@ -101,3 +101,8 @@ add_executable(testing Driver/testing.cpp)
 target_link_libraries(testing PRIVATE std_module helper_lib graph_lib)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET testing PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+add_executable(testcase Driver/testcase.cpp)
+target_link_libraries(testcase PRIVATE std_module helper_lib graph_lib)
+# SPEEDUP FIX 4: Disabled LTO for daily development
+set_property(TARGET testcase PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)

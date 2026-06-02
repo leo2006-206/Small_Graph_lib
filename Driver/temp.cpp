@@ -1,24 +1,27 @@
 import std;
 
-struct node{
-	int id;
-	float wei;
-};
-
 
 int main(void){
 
-	std::vector<node> v{
-		{1, 5.5}, 
-        {3, 2.1}, 
-        {5, 9.9}, 
-        {8, 1.0}
-	};
+	std::vector v{1, 2, 4, 5};
 
-	auto it = std::ranges::lower_bound(v, 5, std::less<>{}, &node::id);
+	std::print("vector is {}\n", v);
 
-	if (it != v.end() && it->id == 5) {
-		// Found it
-		std::print("find\n");
-	}
+	auto it = std::ranges::lower_bound(v, 3);
+
+	auto it2 = v.emplace(it, 3);
+
+	std::print("vector is {}\n", v);
+
+	*it2 = 6;
+
+	std::print("vector is {}\n", v);
+
+	auto& ref = v.emplace_back(7);
+
+	std::print("vector is {}\n", v);
+
+	ref = 8;
+
+	std::print("vector is {}\n", v);
 }
