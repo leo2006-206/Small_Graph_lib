@@ -128,6 +128,8 @@ struct dyn_dir_graph{
 	node_t*						access_node_ptr(node_id_t id);
 	const node_t*				access_node_ptr(node_id_t id) const;
 
+	std::vector<alone_edge>		checking_edge_integrity(std::size_t reserve_size = 0) const;
+
 	node_t*						insert_node(node_id_t id);
 	std::pair<bool, std::size_t>remove_node(node_id_t id);	//bool= removed, size_t= num removed incoming edge to id
 
@@ -139,6 +141,9 @@ struct dyn_dir_graph{
 	template <std::ranges::input_range R>
     requires std::same_as<std::ranges::range_value_t<R>, alone_edge>
 	std::vector<alone_edge>		insert_alone_edges(const R& edges_range, std::size_t reserve_size); //return the vec of edge exist in graph
+
+	void						clear();
+	void						free();
 };
 
 }
@@ -195,7 +200,7 @@ void dyn_node::sort_edge(){
 // dyn_dir_graph start here
 
 bool dyn_dir_graph::node_contains(node_id_t id) const{
-	return (access_node_ptr(id) == nullptr);
+	return (access_node_ptr(id) != nullptr);
 }
 
 bool dyn_dir_graph::edge_contains(node_id_t source, node_id_t dest) const{
@@ -294,6 +299,23 @@ const dyn_dir_graph::node_t* dyn_dir_graph::access_node_ptr(node_id_t id) const{
 	return &(it->second);
 }
 
+std::vector<alone_edge>		dyn_dir_graph::checking_edge_integrity(std::size_t reserve_size) const{
+	std::vector<alone_edge> error_edge_vec;
+	error_edge_vec.reserve(reserve_size);
+
+	for(const auto& cnode : node_range_sized()){
+		const node_id_t source_id = cnode._id;
+
+		for(const auto dest_id : cnode.edges_span()){
+			if(node_contains(dest_id) == false){
+				error_edge_vec.emplace_back(source_id, dest_id);
+			}
+		}
+	}
+
+	return error_edge_vec;
+}
+
 dyn_dir_graph::node_t* dyn_dir_graph::insert_node(node_id_t id){
 	auto [it, inserted] = _node_map.try_emplace(id, id);
 	if(inserted){
@@ -343,8 +365,9 @@ bool dyn_dir_graph::remove_edge(node_id_t source, node_id_t dest){
 }
 
 bool dyn_dir_graph::insert_edge_with_node(node_id_t source, node_id_t dest){
-	auto [it, inserted] = _node_map.try_emplace(source, source);
-	if(it->second.insert_edge(dest) == true){
+	_node_map.try_emplace(dest, dest);
+	auto [sit, sinserted] = _node_map.try_emplace(source, source);
+	if(sit->second.insert_edge(dest) == true){
 		_num_edge += 1;
 		return true;
 	};
@@ -365,6 +388,15 @@ std::vector<alone_edge> dyn_dir_graph::insert_alone_edges(const R& edges_range, 
 		}
 	}
 	return uninserted_edge_vec;
+}
+
+void dyn_dir_graph::clear(){
+	_node_map.clear();
+}
+void dyn_dir_graph::free(){
+	_node_map.clear();
+	node_map_t temp_map;
+	std::swap(temp_map, _node_map);
 }
 
 }
