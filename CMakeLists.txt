@@ -84,6 +84,14 @@ target_sources(
 )
 target_link_libraries(graph_lib PRIVATE std_module helper_lib)
 
+add_library(small_graph_lib)
+target_sources(
+	small_graph_lib PUBLIC 
+	FILE_SET CXX_MODULES FILES
+		Module/Small_Graph/Small_Graph.cppm
+)
+target_link_libraries(graph_lib PRIVATE std_module helper_lib)
+
 # ==============================================================================
 # 3. YOUR EXECUTABLES
 # ==============================================================================
