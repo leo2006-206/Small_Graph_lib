@@ -3,6 +3,7 @@ module;
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstdlib>
 
 export module Helper:Timing;
 

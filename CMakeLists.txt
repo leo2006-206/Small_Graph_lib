@@ -80,6 +80,7 @@ target_sources(
 		Module/Graph/Graph_function.cppm
 		Module/Graph/Graph_ds.cppm
 		Module/Graph/Graph_dynamic.cppm
+		Module/Graph/Graph_ccsr.cppm
 )
 target_link_libraries(graph_lib PRIVATE std_module helper_lib)
 
