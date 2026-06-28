@@ -4,7 +4,7 @@ set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "2999bf5c-ef0d-489a-91da-49dbc3090d2
 
 project(MyConcurrencyProject CXX)
 
-set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
@@ -88,16 +88,17 @@ add_library(small_graph_lib)
 target_sources(
 	small_graph_lib PUBLIC 
 	FILE_SET CXX_MODULES FILES
-		Module/Small_Graph/Small_Graph.cppm
+		Module/Small_Graph/SG.cppm
+		Module/Small_Graph/SG_dynamic.cppm
 )
-target_link_libraries(graph_lib PRIVATE std_module helper_lib)
+target_link_libraries(small_graph_lib PRIVATE std_module helper_lib)
 
 # ==============================================================================
 # 3. YOUR EXECUTABLES
 # ==============================================================================
 
 add_executable(main Driver/main.cpp)
-target_link_libraries(main PRIVATE std_module helper_lib graph_lib)
+target_link_libraries(main PRIVATE std_module helper_lib graph_lib small_graph_lib)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET main PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 

@@ -2,8 +2,8 @@ module;
 
 export module Small_Graph;
 
-// export import :csr_graph;
+export import :dynamic_graph;
 
-export namespace Small_Graph{
-
+export namespace SG{
+	using namespace SG::dynamic_graph;
 };
