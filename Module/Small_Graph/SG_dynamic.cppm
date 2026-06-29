@@ -7,7 +7,7 @@ import std;
 namespace SG::dynamic_graph{
 
 template<typename range_t, typename value_t>
-concept input_range_convertible = requires (range_t, value_t){
+concept input_range_convertible = requires (){
 	requires std::ranges::input_range<range_t>;
 	requires std::is_convertible_v<std::ranges::range_reference_t<range_t>, value_t>;
 };
@@ -47,32 +47,57 @@ struct	dyn_node{
 	}
 
 	[[nodiscard]] constexpr		bool						edge_contains(node_id_t in_dist) const;
+	[[nodiscard]] constexpr		std::size_t					out_degree() const;
 
 	[[nodiscard]] constexpr		std::span<node_id_t>		edges_span();
 	[[nodiscard]] constexpr		std::span<const node_id_t>	edges_span() const;
 
+	//return range<alone_edge>, alone_edge{source_id_, dist} is new created, not proxy of original dist
 	[[nodiscard]] constexpr		auto/*range<alone_edge>*/	alone_edges_range() const;
 
 	[[nodiscard]] constexpr		bool						insert_edge(node_id_t in_dist);
 	constexpr					bool						try_insert_edge(node_id_t in_dist);
-	constexpr					std::size_t					insert_range_edges(/*const*/input_range_convertible<node_id_t> auto&& in_range);
+	constexpr					std::size_t/*failed_count*/	insert_range_edges(/*const*/input_range_convertible<node_id_t> auto&& in_range);
 	[[nodiscard]] constexpr		std::vector<node_id_t>		insert_range_edges_vec(
 		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-	);
+	);							/*return vector{failed_edges}*/
 
 	[[nodiscard]] constexpr		bool						remove_edge(node_id_t in_dist);
 	constexpr					bool						try_remove_edge(node_id_t in_dist);
-	constexpr					std::size_t					remove_range_edges(input_range_convertible<node_id_t> auto&& in_range);
+	constexpr					std::size_t/*failed_count*/	remove_range_edges(input_range_convertible<node_id_t> auto&& in_range);
 	[[nodiscard]] constexpr		std::vector<node_id_t>		remove_range_edges_vec(
 		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-	);
+	);							/*return vector{failed_edges}*/
 
 	void													sort_edges();
 };
 
 struct	dyn_graph{
+	using node_table_t = std::unordered_map<
+		node_id_t,	//key
+		dyn_node,	//value
+		std::hash<node_id_t>,
+		std::equal_to<node_id_t>,
+		std::allocator<std::pair<const node_id_t, dyn_node>>
+	>;
+
+	node_table_t	node_table;
+
+	explicit constexpr dyn_graph(std::size_t reserve_size = 64)
+	: node_table(){
+		node_table.reserve(reserve_size);
+	}
+
+	[[nodiscard]] constexpr		bool			node_contains(node_id_t in_id) const;
+	[[nodiscard]] constexpr		bool			edge_contains(alone_edge in_edge) const;
+
+	[[nodiscard]] constexpr		bool			insert_edge(alone_edge in_edge);
+	[[nodiscard]] constexpr		bool			remove_edge(alone_edge in_edge);
 
 
+	constexpr					std::size_t		insert_range(input_range_convertible<alone_edge> auto&& in_range);
+	constexpr					std::size_t		remove_range(input_range_convertible<alone_edge> auto&& in_range);
+	
 };
 
 }
@@ -87,6 +112,9 @@ namespace	stdrv	= std::ranges::views;
 constexpr		bool						dyn_node::edge_contains(node_id_t in_dist) const{
 	if(in_dist == source_id_){return false;}
 	return stdr::find(edge_vec_, in_dist) != edge_vec_.end();
+}
+constexpr		std::size_t					dyn_node::out_degree() const{
+	return edge_vec_.size();
 }
 
 constexpr		std::span<node_id_t>		dyn_node::edges_span(){
