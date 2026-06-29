@@ -4,6 +4,16 @@ export module Small_Graph:dynamic_graph;
 
 import std;
 
+namespace SG::dynamic_graph{
+
+template<typename range_t, typename value_t>
+concept input_range_convertible = requires (range_t, value_t){
+	requires std::ranges::input_range<range_t>;
+	requires std::is_convertible_v<std::ranges::range_reference_t<range_t>, value_t>;
+};
+
+}
+
 
 export namespace SG::dynamic_graph{
 
@@ -45,13 +55,17 @@ struct	dyn_node{
 
 	[[nodiscard]] constexpr		bool						insert_edge(node_id_t in_dist);
 	constexpr					bool						try_insert_edge(node_id_t in_dist);
-	constexpr					std::size_t					insert_range_edges(const std::ranges::forward_range auto& in_range)
-		requires std::is_same_v<node_id_t, std::ranges::range_value_t<decltype(in_range)>>;
+	constexpr					std::size_t					insert_range_edges(/*const*/input_range_convertible<node_id_t> auto&& in_range);
+	[[nodiscard]] constexpr		std::vector<node_id_t>		insert_range_edges_vec(
+		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
+	);
 
 	[[nodiscard]] constexpr		bool						remove_edge(node_id_t in_dist);
 	constexpr					bool						try_remove_edge(node_id_t in_dist);
-	constexpr					std::size_t					remove_range_edges(const std::ranges::forward_range auto& in_range)
-		requires std::is_same_v<node_id_t, std::ranges::range_value_t<decltype(in_range)>>;
+	constexpr					std::size_t					remove_range_edges(input_range_convertible<node_id_t> auto&& in_range);
+	[[nodiscard]] constexpr		std::vector<node_id_t>		remove_range_edges_vec(
+		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
+	);
 
 	void													sort_edges();
 };
@@ -64,9 +78,8 @@ struct	dyn_graph{
 }
 
 
-
-namespace SG::dynamic_graph{
 // implementation start here
+namespace SG::dynamic_graph{
 
 namespace	stdr	= std::ranges;
 namespace	stdrv	= std::ranges::views;
@@ -107,8 +120,31 @@ constexpr		bool						dyn_node::try_insert_edge(node_id_t in_dist){
 	edge_vec_.emplace_back(in_dist);
 	return true;
 }
-constexpr					std::size_t					insert_range_edges(const std::ranges::forward_range auto& in_range)
-requires std::is_same_v<node_id_t, std::ranges::range_value_t<decltype(in_range)>>;
+constexpr		std::size_t					dyn_node::insert_range_edges(input_range_convertible<node_id_t> auto&& in_range){
+	std::size_t insert_failed_count{};
+
+	for(node_id_t dist : in_range){
+		if(insert_edge(dist) == false){
+			insert_failed_count++;
+		}
+	}
+
+	return insert_failed_count;
+}
+constexpr		std::vector<node_id_t>		dyn_node::insert_range_edges_vec(
+	/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
+){
+	std::vector<node_id_t> failed_dist;
+	failed_dist.reserve(reserve_size);
+
+	for(node_id_t dist : in_range){
+		if(insert_edge(dist) == false){
+			failed_dist.emplace_back(dist);
+		}
+	}
+
+	return failed_dist;
+}
 
 constexpr		bool						dyn_node::remove_edge(node_id_t in_dist){
 	if(in_dist == source_id_){return false;}
@@ -128,8 +164,32 @@ constexpr		bool						dyn_node::try_remove_edge(node_id_t in_dist){
 	edge_vec_.erase(it);
 	return true;
 }
-constexpr					std::size_t					remove_range_edges(const std::ranges::forward_range auto& in_range)
-requires std::is_same_v<node_id_t, std::ranges::range_value_t<decltype(in_range)>>;
+constexpr		std::size_t					dyn_node::remove_range_edges(input_range_convertible<node_id_t> auto&& in_range){
+	std::size_t remove_failed_count{};
+
+	for(node_id_t dist : in_range){
+		if(remove_edge(dist) == false){
+			remove_failed_count++;
+		}
+	}
+
+	return remove_failed_count;
+}
+constexpr		std::vector<node_id_t>		dyn_node::remove_range_edges_vec(
+	/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
+){
+	std::vector<node_id_t> failed_dist;
+	failed_dist.reserve(reserve_size);
+
+	for(node_id_t dist : in_range){
+		if(remove_edge(dist) == false){
+			failed_dist.emplace_back(dist);
+		}
+	}
+
+	return failed_dist;
+}
+
 
 void										dyn_node::sort_edges(){
 	stdr::sort(edge_vec_);

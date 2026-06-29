@@ -7,6 +7,12 @@ import Small_Graph;
 
 void test_dyn_node() {
     using namespace SG;
+	auto print_dyn_node = [](dyn_node n){
+		std::println("source = {}, |E| = {}", n.source_id_, n.edge_vec_.size());
+		for(auto&& ae : n.alone_edges_range()){
+			std::println("\t{}", ae);
+		}
+	};
 
     dyn_node node(1);
 
@@ -60,6 +66,28 @@ void test_dyn_node() {
     dyn_node node_different(42);
     assert(node == node_same);
     assert(!(node == node_different));
+
+	//9.  Test for range insert and remove
+	std::vector<node_id_t> dist_vec{10, 11, 12, 10, 1};
+	//true, true, true, false, false
+
+	auto insert_failed_count = node.insert_range_edges(dist_vec);
+	assert(insert_failed_count == 2);
+
+	auto remove_failed_count = node.remove_range_edges(dist_vec);
+	assert(remove_failed_count == 2);
+
+	node.insert_range_edges(dist_vec);
+	auto failed_insert_dist = node.insert_range_edges_vec(dist_vec, 10);
+	assert(failed_insert_dist == dist_vec);
+
+	auto failed_remove_dist = node.remove_range_edges_vec(dist_vec, 10);
+	std::vector<node_id_t> ff_vec;
+	ff_vec.emplace_back(10);ff_vec.emplace_back(1);
+	assert(failed_remove_dist == ff_vec);
+
+	print_dyn_node(node);
+
 }
 int main(void){
 	Debug::clear_log();
