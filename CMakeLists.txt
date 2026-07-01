@@ -90,6 +90,7 @@ target_sources(
 	FILE_SET CXX_MODULES FILES
 		Module/Small_Graph/SG.cppm
 		Module/Small_Graph/SG_dynamic.cppm
+		Module/Small_Graph/SG_static_csr.cppm
 )
 target_link_libraries(small_graph_lib PRIVATE std_module helper_lib)
 
