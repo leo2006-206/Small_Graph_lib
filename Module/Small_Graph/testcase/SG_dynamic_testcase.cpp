@@ -85,3 +85,154 @@ void test_dyn_node() {
 	print_dyn_node(node);
 
 }
+
+void test_dyn_graph(){
+    using namespace SG;
+
+    dyn_graph graph;
+
+    // The raw input data
+    std::vector<alone_edge> input_edges = {
+        alone_edge{1, 2}, alone_edge{1, 3},
+        alone_edge{1, 4}, alone_edge{1, 5},
+        alone_edge{2, 1}, alone_edge{2, 3},
+        alone_edge{1, 2}, // duplicate (fail 1)
+        alone_edge{1, 1}, // self-loop (fail 2)
+        alone_edge{2, 2}  // self-loop (fail 3)
+    };
+
+    // 1. Test batch insertion and failure counts
+    auto failed_count = graph.insert_range(input_edges);
+    assert(failed_count == 3 && "Should fail on exactly 1 duplicate and 2 self-loops");
+
+    // 2. Explicitly test that valid edges exist
+    std::vector<alone_edge> expected_valid = {
+        alone_edge{1, 2},
+		alone_edge{1, 3},
+		alone_edge{1, 4},
+		alone_edge{1, 5}, 
+		alone_edge{2, 1}, 
+		alone_edge{2, 3}
+    };
+    for(const auto& edge : expected_valid){
+        assert(graph.edge_contains(edge) && "Valid edge should be in the graph");
+    }
+
+    // 3. Explicitly test that invalid/uninserted edges DO NOT exist
+    assert(!graph.edge_contains(alone_edge{1, 1}) && "Self loops should not exist");
+    assert(!graph.edge_contains(alone_edge{2, 2}) && "Self loops should not exist");
+    
+    // (Testing directed nature: 1->4 exists, but 4->1 was never added)
+    assert(!graph.edge_contains(alone_edge{4, 1}) && "Graph should be directed; reverse edge shouldn't exist");
+    
+    // (Testing completely unknown nodes)
+    assert(!graph.edge_contains(alone_edge{99, 100}) && "Completely fake edges should return false");
+
+    // 4. Test Node existence (Positive space)
+    for(node_id_t i : std::views::iota(1uz, 6uz)){
+        assert(graph.node_contains(i) && "Nodes 1-5 should exist");
+        assert(graph.find_node(i) != graph.node_table.end());
+    }
+
+    // 5. Test Node non-existence (Negative space - VERY IMPORTANT)
+    assert(!graph.node_contains(6) && "Node 6 was never added");
+    assert(graph.find_node(6) == graph.node_table.end());
+    assert(!graph.node_contains(99) && "Node 99 was never added");
+
+}
+
+using namespace SG::dynamic_graph;
+
+void test_packing_node_id_map() {
+    dyn_graph graph;
+
+    // 1. Setup a sparse graph with gaps in IDs
+    // Node 10 points to 20 and 30
+    graph.insert_edge(10, 20);
+    graph.insert_edge(10, 30);
+    // Node 20 points to 30
+    graph.insert_edge(20, 30);
+    // Node 30 points to 10
+    graph.insert_edge(30, 10);
+
+    // 2. Perform packing
+    auto id_map = graph.packing_node_id_map();
+
+    // 3. Verify the returned Map (Old ID -> New ID)
+    assert(id_map.size() == 3);
+    assert(id_map.at(10) == 0);
+    assert(id_map.at(20) == 1);
+    assert(id_map.at(30) == 2);
+
+    // 4. Verify internal node keys are updated
+    assert(graph.node_table_.size() == 3);
+    assert(graph.node_contains(0) == true);
+    assert(graph.node_contains(1) == true);
+    assert(graph.node_contains(2) == true);
+    assert(graph.node_contains(10) == false); // Old ID should be gone
+
+    // 5. Verify internal edges are updated
+    // Old Node 10 (now 0) should point to Old Node 20 (now 1) and 30 (now 2)
+    auto edges_0 = graph.node_edges_span(0);
+    assert(edges_0.size() == 2);
+    // Note: If edge_vec_ isn't strictly sorted during insert, you may need to search. 
+    // Assuming we just check if they exist:
+    assert(graph.edge_contains(0, 1) == true);
+    assert(graph.edge_contains(0, 2) == true);
+
+    // Old Node 20 (now 1) should point to Old Node 30 (now 2)
+    assert(graph.edge_contains(1, 2) == true);
+    assert(graph.edge_contains(1, 3) == false);
+
+    std::cout << "[PASS] test_packing_node_id_map\n";
+}
+
+void test_packing_node_id_vec() {
+    dyn_graph graph;
+
+    // 1. Setup sparse graph
+    graph.insert_edge(100, 500);
+    graph.insert_edge(500, 100);
+    graph.insert_edge(500, 900);
+
+    // 2. Perform packing
+    auto id_vec = graph.packing_node_id_vec();
+
+    // 3. Verify the returned Vector (New ID -> Old ID)
+    // Index is New ID, Value is Old ID
+    assert(id_vec.size() == 3);
+    assert(id_vec[0] == 100);
+    assert(id_vec[1] == 500);
+    assert(id_vec[2] == 900);
+
+    // 4. Verify internal edges are correctly mapped via std::distance
+    // Old Node 500 (now 1) should point to Old Node 100 (now 0) and 900 (now 2)
+    assert(graph.edge_contains(1, 0) == true);
+    assert(graph.edge_contains(1, 2) == true);
+    assert(graph.edge_contains(1, 500) == false); // ensure old IDs are wiped from edges
+
+    std::cout << "[PASS] test_packing_node_id_vec\n";
+}
+
+void test_already_packed_optimization() {
+    dyn_graph graph;
+
+    // 1. Setup a perfectly packed graph [0, 1, 2]
+    graph.insert_edge(0, 1);
+    graph.insert_edge(1, 2);
+    graph.insert_edge(2, 0);
+
+    // 2. Perform packing
+    auto id_vec = graph.packing_node_id_vec();
+
+    // 3. Verify early exit (should return empty vector as no packing was needed)
+    assert(id_vec.empty() == true);
+
+    // 4. Verify graph remains fully intact
+    assert(graph.node_contains(0) == true);
+    assert(graph.node_contains(1) == true);
+    assert(graph.node_contains(2) == true);
+    assert(graph.edge_contains(0, 1) == true);
+
+    std::cout << "[PASS] test_already_packed_optimization\n";
+}

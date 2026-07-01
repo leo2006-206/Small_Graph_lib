@@ -21,12 +21,16 @@ export namespace SG::dynamic_graph{
 
 using node_id_t = std::uint64_t;
 
+constexpr bool IS_simple_graph{true}; 
+
 struct	alone_edge{
 	node_id_t	source;
 	node_id_t	dist;
 
 	explicit constexpr alone_edge(node_id_t in_source, node_id_t in_dist)
 	: source(in_source), dist(in_dist){}
+
+	constexpr bool operator==(const alone_edge&) const = default;
 };
 
 struct	dyn_node{
@@ -81,23 +85,38 @@ struct	dyn_graph{
 		std::allocator<std::pair<const node_id_t, dyn_node>>
 	>;
 
-	node_table_t	node_table;
+	using iter_t 		= node_table_t::iterator;
+	using const_iter_t	= node_table_t::const_iterator;
+
+	using const_id_map_t= const std::unordered_map<node_id_t, node_id_t>;
+
+	node_table_t	node_table_;
 
 	explicit constexpr dyn_graph(std::size_t reserve_size = 64)
-	: node_table(){
-		node_table.reserve(reserve_size);
+	: node_table_(){
+		node_table_.reserve(reserve_size);
 	}
 
-	[[nodiscard]] constexpr		bool			node_contains(node_id_t in_id) const;
-	[[nodiscard]] constexpr		bool			edge_contains(alone_edge in_edge) const;
+	[[nodiscard]] constexpr		bool						node_contains(node_id_t in_id) const;
+	[[nodiscard]] constexpr		bool						edge_contains(alone_edge in_edge) const;
+	[[nodiscard]] constexpr		bool						edge_contains(node_id_t source, node_id_t dist) const;
 
-	[[nodiscard]] constexpr		bool			insert_edge(alone_edge in_edge);
-	[[nodiscard]] constexpr		bool			remove_edge(alone_edge in_edge);
+	[[nodiscard]] constexpr		std::span<const node_id_t>	node_edges_span(node_id_t in_id) const;
+
+	[[nodiscard]] constexpr		iter_t						find_node(node_id_t in_id);
+	[[nodiscard]] constexpr		const_iter_t				find_node(node_id_t in_id) const;
+
+	constexpr		bool						insert_edge(alone_edge in_edge);
+	constexpr		bool						insert_edge(node_id_t source, node_id_t dist);
+	constexpr		bool						remove_edge(alone_edge in_edge);
 
 
-	constexpr					std::size_t		insert_range(input_range_convertible<alone_edge> auto&& in_range);
-	constexpr					std::size_t		remove_range(input_range_convertible<alone_edge> auto&& in_range);
+	constexpr					std::size_t/*failed count*/	insert_range(input_range_convertible<alone_edge> auto&& in_range);
+	constexpr					std::size_t/*failed count*/	remove_range(input_range_convertible<alone_edge> auto&& in_range);
 	
+	[[nodiscard]] constexpr		std::vector<alone_edge>		checking_edge_integrity(std::size_t reserve_size = 0) const;
+	[[nodiscard]] constexpr		const_id_map_t				packing_node_id_map();
+	[[nodiscard]] constexpr		std::vector<node_id_t>		packing_node_id_vec();
 };
 
 }
@@ -110,7 +129,12 @@ namespace	stdr	= std::ranges;
 namespace	stdrv	= std::ranges::views;
 
 constexpr		bool						dyn_node::edge_contains(node_id_t in_dist) const{
-	if(in_dist == source_id_){return false;}
+	if constexpr (IS_simple_graph == true){
+		if(in_dist == source_id_){
+			return false;
+		}
+	}
+
 	return stdr::find(edge_vec_, in_dist) != edge_vec_.end();
 }
 constexpr		std::size_t					dyn_node::out_degree() const{
@@ -133,7 +157,12 @@ constexpr		auto/*range<alone_edge>*/	dyn_node::alone_edges_range() const{
 }
 
 constexpr		bool						dyn_node::insert_edge(node_id_t in_dist){
-	if(in_dist == source_id_){return false;}
+	if constexpr (IS_simple_graph == true){
+		if(in_dist == source_id_){
+			return false;
+		}
+	}
+
 	if(edge_contains(in_dist)){
 		return false;
 	}
@@ -141,7 +170,12 @@ constexpr		bool						dyn_node::insert_edge(node_id_t in_dist){
 	return true;
 }
 constexpr		bool						dyn_node::try_insert_edge(node_id_t in_dist){
-	if(in_dist == source_id_){return false;}
+	if constexpr (IS_simple_graph == true){
+		if(in_dist == source_id_){
+			return false;
+		}
+	}
+
 	if(edge_contains(in_dist)){
 		return false;
 	}
@@ -175,7 +209,12 @@ constexpr		std::vector<node_id_t>		dyn_node::insert_range_edges_vec(
 }
 
 constexpr		bool						dyn_node::remove_edge(node_id_t in_dist){
-	if(in_dist == source_id_){return false;}
+	if constexpr (IS_simple_graph == true){
+		if(in_dist == source_id_){
+			return false;
+		}
+	}
+
 	auto it = stdr::find(edge_vec_, in_dist);
 	if(it == edge_vec_.end()){
 		return false;
@@ -184,7 +223,12 @@ constexpr		bool						dyn_node::remove_edge(node_id_t in_dist){
 	return true;
 }
 constexpr		bool						dyn_node::try_remove_edge(node_id_t in_dist){
-	if(in_dist == source_id_){return false;}
+	if constexpr (IS_simple_graph == true){
+		if(in_dist == source_id_){
+			return false;
+		}
+	}
+
 	auto it = stdr::find(edge_vec_, in_dist);
 	if(it == edge_vec_.end()){
 		return false;
@@ -218,11 +262,233 @@ constexpr		std::vector<node_id_t>		dyn_node::remove_range_edges_vec(
 	return failed_dist;
 }
 
-
 void										dyn_node::sort_edges(){
 	stdr::sort(edge_vec_);
 }
+
+
+
+// dyn_graph started here
+
+constexpr		bool						dyn_graph::node_contains(node_id_t in_id) const{
+	return node_table_.contains(in_id);
+}
+constexpr		bool						dyn_graph::edge_contains(alone_edge in_edge) const{
+	if constexpr (IS_simple_graph == true) {
+		if(in_edge.source == in_edge.dist){
+			return false;
+		}
+	}
+
+	const auto iter = find_node(in_edge.source);
+	if(iter != node_table_.end()){
+		return iter->second.edge_contains(in_edge.dist);
+	}
+	return false;
+}
+constexpr		bool						dyn_graph::edge_contains(node_id_t source, node_id_t dist) const{
+	return edge_contains(alone_edge{source, dist});
+}
+
+constexpr		std::span<const node_id_t>	dyn_graph::node_edges_span(node_id_t in_id) const{
+	auto iter = find_node(in_id);
+	if(iter != node_table_.end()){
+		return iter->second.edges_span();
+	}
+	return {};
+}
+
+constexpr		dyn_graph::iter_t			dyn_graph::find_node(node_id_t in_id){
+	return node_table_.find(in_id);
+}
+constexpr		dyn_graph::const_iter_t		dyn_graph::find_node(node_id_t in_id) const{
+	return node_table_.find(in_id);
+}
+
+constexpr		bool						dyn_graph::insert_edge(alone_edge in_edge){
+	if constexpr (IS_simple_graph == true) {
+		if(in_edge.source == in_edge.dist){
+			return false;
+		}
+	}
+
+	auto [iter, is_new_node] = node_table_.try_emplace(in_edge.source, in_edge.source);
+	if(iter->second.insert_edge(in_edge.dist)){
+		node_table_.try_emplace(in_edge.dist, in_edge.dist);
+		return true;
+	}
+	return false;
+}
+constexpr		bool						dyn_graph::insert_edge(node_id_t source, node_id_t dist){
+	return insert_edge(alone_edge{source, dist});
+}
+constexpr		bool						dyn_graph::remove_edge(alone_edge in_edge){
+	if constexpr (IS_simple_graph == true) {
+		if(in_edge.source == in_edge.dist){
+			return false;
+		}
+	}
+
+	auto iter = find_node(in_edge.source);
+	if(iter != node_table_.end()){
+		return iter->second.remove_edge(in_edge.dist);
+	}
+	return false;
+}
+
+
+constexpr		std::size_t					dyn_graph::insert_range(
+	input_range_convertible<alone_edge> auto&& in_range
+){
+	std::size_t failed_count{};
+
+	for(alone_edge ae : in_range){
+		if(insert_edge(ae) == false){
+			failed_count++;
+		}
+	}
+
+	return failed_count;
+}
+constexpr		std::size_t					dyn_graph::remove_range(
+	input_range_convertible<alone_edge> auto&& in_range
+){
+	std::size_t failed_count{};
+
+	for(alone_edge ae : in_range){
+		if(remove_edge(ae) == false){
+			failed_count++;
+		}
+	}
+
+	return failed_count;
+}
+
+constexpr		std::vector<alone_edge>		dyn_graph::checking_edge_integrity(std::size_t reserve_size) const{
+	if (node_table_.empty()) {
+        return {};
+    }
 	
+	std::vector<alone_edge> invalid_vec;
+	if(reserve_size > 0){
+		invalid_vec.reserve(reserve_size);		
+	}
+
+	for(const auto& [id, node] : node_table_){
+		const node_id_t source = node.source_id_;
+		for(const auto dist : node.edges_span()){
+			if(node_contains(dist) == false){
+				invalid_vec.emplace_back(source, dist);
+			}
+		}
+	}
+
+	return invalid_vec;
+}
+
+constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
+    if (node_table_.empty()) {
+        return {};
+    }
+
+    std::vector<node_id_t> id_vec;
+    id_vec.reserve(node_table_.size());
+
+    for(const auto& [key, value] : node_table_){
+        id_vec.emplace_back(key);
+    }
+
+    stdr::sort(id_vec);
+
+    // Efficient packed check: If the max ID equals size - 1, it's packed [0, N-1]
+    if (id_vec.back() == id_vec.size() - 1uz) {
+        return {};
+    }
+
+    // Build map: Old ID -> New ID
+    std::unordered_map<node_id_t, node_id_t> id_map;
+    id_map.reserve(node_table_.size());
+
+    node_id_t index_id = 0;
+    for(auto node_id : id_vec){
+        id_map.try_emplace(node_id, index_id); // Fixed: Old -> New
+        index_id++;
+    }
+
+    auto packing_dyn_node = [&](node_id_t packed_id, dyn_node& node){
+        node.source_id_ = packed_id;
+        for(auto& old_id : node.edges_span()){
+            auto iter = id_map.find(old_id);
+            if (iter != id_map.end()) {
+                old_id = iter->second; // Correctly grabs the New ID
+            }
+        }
+    };
+
+    index_id = 0;
+    for(auto node_id : id_vec){
+        if(index_id == node_id){
+            packing_dyn_node(index_id, node_table_.at(node_id));
+        }
+        else{
+            auto table_node = node_table_.extract(node_id);
+            table_node.key() = index_id;
+            packing_dyn_node(index_id, table_node.mapped());
+            node_table_.insert(std::move(table_node));
+        }
+        index_id++;
+    }
+
+    return id_map;
+}
+
+constexpr std::vector<node_id_t> dyn_graph::packing_node_id_vec() {
+    if (node_table_.empty()) {
+        return {};
+    }
+
+    std::vector<node_id_t> id_vec;
+    id_vec.reserve(node_table_.size());
+
+    for(const auto& [key, value] : node_table_){
+        id_vec.emplace_back(key);
+    }
+
+    stdr::sort(id_vec);
+
+    // Efficient packed check
+    if (id_vec.back() == id_vec.size() - 1) {
+        return {};
+    }
+
+    auto packing_dyn_node = [&](node_id_t packed_id, dyn_node& node){
+        node.source_id_ = packed_id;
+        for(auto& old_id : node.edges_span()){
+            auto iter = stdr::lower_bound(id_vec, old_id);
+            if (iter != id_vec.end() && *iter == old_id) {
+                // Fixed: Correct positive distance calculation
+                old_id = static_cast<node_id_t>(std::distance(id_vec.begin(), iter));
+            }
+        }
+    };
+
+    node_id_t index_id = 0;
+    for(auto node_id : id_vec){
+        if(index_id == node_id){
+            packing_dyn_node(index_id, node_table_.at(node_id));
+        }
+        else{
+            auto table_node = node_table_.extract(node_id);
+            table_node.key() = index_id;
+            packing_dyn_node(index_id, table_node.mapped());
+            node_table_.insert(std::move(table_node));
+        }
+        index_id++;
+    }
+
+    return id_vec;
+}
+
 }
 
 // std extra formatter and hash here
