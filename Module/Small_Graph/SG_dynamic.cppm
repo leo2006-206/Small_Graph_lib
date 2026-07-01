@@ -3,6 +3,7 @@ module;
 export module Small_Graph:dynamic_graph;
 
 import std;
+import :core;
 
 namespace SG{
 
@@ -18,10 +19,6 @@ concept input_range_convertible = requires (){
 namespace SG{
 
 //Currently only targeting unweighted directed graph
-
-using node_id_t = std::uint64_t;
-
-constexpr bool IS_simple_graph{true}; 
 
 struct	alone_edge{
 	node_id_t	source;
