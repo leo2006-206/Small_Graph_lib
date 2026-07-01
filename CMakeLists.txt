@@ -91,6 +91,7 @@ target_sources(
 		Module/Small_Graph/SG.cppm
 		Module/Small_Graph/SG_dynamic.cppm
 		Module/Small_Graph/SG_static_csr.cppm
+		Module/Small_Graph/SG_core.cppm
 )
 target_link_libraries(small_graph_lib PRIVATE std_module helper_lib)
 
