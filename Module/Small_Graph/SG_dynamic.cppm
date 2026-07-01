@@ -4,7 +4,7 @@ export module Small_Graph:dynamic_graph;
 
 import std;
 
-namespace SG::dynamic_graph{
+namespace SG{
 
 template<typename range_t, typename value_t>
 concept input_range_convertible = requires (){
@@ -15,7 +15,7 @@ concept input_range_convertible = requires (){
 }
 
 
-export namespace SG::dynamic_graph{
+namespace SG{
 
 //Currently only targeting unweighted directed graph
 
@@ -121,9 +121,8 @@ struct	dyn_graph{
 
 }
 
-
 // implementation start here
-namespace SG::dynamic_graph{
+namespace SG{
 
 namespace	stdr	= std::ranges;
 namespace	stdrv	= std::ranges::views;
@@ -493,9 +492,9 @@ constexpr std::vector<node_id_t> dyn_graph::packing_node_id_vec() {
 
 // std extra formatter and hash here
 template <>
-struct std::formatter<SG::dynamic_graph::alone_edge> : std::formatter<std::string>{
+struct std::formatter<SG::alone_edge> : std::formatter<std::string>{
 
-	auto format(const SG::dynamic_graph::alone_edge& e, std::format_context& ctx) const {
+	auto format(const SG::alone_edge& e, std::format_context& ctx) const {
         // std::format_to writes directly to the output buffer
         return std::format_to(ctx.out(), "({} -> {}) ", e.source, e.dist);
     }
