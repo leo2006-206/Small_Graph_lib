@@ -114,8 +114,8 @@ int main(void){
 	auto csr = csr_load(g);
 
 	// dyn_test(g);
-	csr_test(csr);
-	// csr_test2(csr);
+	// csr_test(csr);
+	csr_test2(csr);
 
 	return 0;
 }

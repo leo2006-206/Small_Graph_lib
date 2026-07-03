@@ -146,7 +146,7 @@ constexpr 		std::span<const csr_graph::node_t>			csr_graph::node_edges_range(nod
 	}
 
 	auto span = std::span{edge_vec_};
-	return span.subspan(node_vec_[id], *node_degree(id));
+	return span.subspan(node_vec_[id], node_vec_[id+1] - node_vec_[id]);
 }
 
 constexpr		auto/*range<const node_t>*/		csr_graph::nodes_range() const{
