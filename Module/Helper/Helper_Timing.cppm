@@ -57,6 +57,19 @@ export	namespace Timing{
 		}
 	};
 
+	struct raii_perf_control{
+		perf_control pc;
+
+		raii_perf_control(const char* fifo_path = "./perf_control.fifo")
+		: pc(fifo_path){
+			pc.start();
+		}
+		
+		~raii_perf_control(){
+			pc.finish();
+		}
+	};
+
 	std::string	nice_duration_str(
 		const std::chrono::nanoseconds duration
 	){

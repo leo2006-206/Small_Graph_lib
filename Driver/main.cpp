@@ -23,7 +23,7 @@ auto load_graph(const std::filesystem::path& file_path){
 
 		std::istringstream iss{line};
 
-		SG::dynamic_graph::node_id_t sour, dist;
+		SG::node_id_t sour, dist;
 
 		if(iss >> sour >> dist){
 			success_count += g.insert_edge(sour, dist);
@@ -38,6 +38,72 @@ auto load_graph(const std::filesystem::path& file_path){
 	return g;
 }
 
+auto csr_load(SG::dyn_graph in_graph){
+	using namespace SG;
+
+	auto g = *SG::csr_graph::make_csr(in_graph);
+	auto size = g.node_vec_.size() * sizeof(csr_graph::edge_t) + g.edge_vec_.size() * sizeof(csr_graph::node_t);
+	std::println("total size = {}", size);
+
+	return g;
+}
+
+auto dyn_test(const SG::dyn_graph& g){
+	std::size_t sum{};
+	
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		for(auto l = 0; l < 100; ++l)
+
+		for(auto& [key, node] : g.node_table_){
+			for(auto dist : node.edges_span()){
+				sum += node.source_id_;
+				sum ^= dist;
+			}
+		}
+	
+	}
+
+	std::println("{}", sum);
+}
+
+auto csr_test(const SG::csr_graph& g){
+	std::size_t sum{};
+	
+	{
+		Timing::print_timer t;
+		Timing::raii_perf_control pc;
+		for(auto l = 0; l < 100; ++l)
+
+		for(auto ae : g.edges_range()){
+			sum += ae.source;
+			sum ^= ae.dist;
+		}
+	
+	}
+
+	std::println("{}", sum);
+}
+
+auto csr_test2(const SG::csr_graph& g){
+	std::size_t sum{};
+	
+	{
+		Timing::print_timer t;
+		Timing::raii_perf_control pc;
+		for(auto l = 0; l < 100; ++l)
+
+		g.for_each_edge([&sum](SG::alone_edge e){
+			sum += e.source;
+			sum ^= e.dist;
+		});
+	
+	}
+
+	std::println("{}", sum);
+}
+
 int main(void){
 	Debug::clear_log();
 
@@ -45,6 +111,11 @@ int main(void){
 	auto data_path = current_path / "Dataset" / "amazon_product_2003/Amazon0601.txt";
 
 	auto g = load_graph(data_path);
+	auto csr = csr_load(g);
+
+	// dyn_test(g);
+	csr_test(csr);
+	// csr_test2(csr);
 
 	return 0;
 }

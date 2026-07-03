@@ -2,8 +2,6 @@ module;
 
 export module Small_Graph;
 
+export import :core;
 export import :dynamic_graph;
-
-export namespace SG{
-	
-};
+export import :static_graph;

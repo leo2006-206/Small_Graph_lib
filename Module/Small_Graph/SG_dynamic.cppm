@@ -5,30 +5,10 @@ export module Small_Graph:dynamic_graph;
 import std;
 import :core;
 
-namespace SG{
-
-template<typename range_t, typename value_t>
-concept input_range_convertible = requires (){
-	requires std::ranges::input_range<range_t>;
-	requires std::is_convertible_v<std::ranges::range_reference_t<range_t>, value_t>;
-};
-
-}
-
-
-namespace SG{
+export namespace SG{
 
 //Currently only targeting unweighted directed graph
 
-struct	alone_edge{
-	node_id_t	source;
-	node_id_t	dist;
-
-	explicit constexpr alone_edge(node_id_t in_source, node_id_t in_dist)
-	: source(in_source), dist(in_dist){}
-
-	constexpr bool operator==(const alone_edge&) const = default;
-};
 
 struct	dyn_node{
 	using edge_vec_t = std::vector<node_id_t>;
@@ -103,9 +83,9 @@ struct	dyn_graph{
 	[[nodiscard]] constexpr		iter_t						find_node(node_id_t in_id);
 	[[nodiscard]] constexpr		const_iter_t				find_node(node_id_t in_id) const;
 
-	constexpr		bool						insert_edge(alone_edge in_edge);
-	constexpr		bool						insert_edge(node_id_t source, node_id_t dist);
-	constexpr		bool						remove_edge(alone_edge in_edge);
+	constexpr		bool									insert_edge(alone_edge in_edge);
+	constexpr		bool									insert_edge(node_id_t source, node_id_t dist);
+	constexpr		bool									remove_edge(alone_edge in_edge);
 
 
 	constexpr					std::size_t/*failed count*/	insert_range(input_range_convertible<alone_edge> auto&& in_range);
