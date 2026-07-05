@@ -28,6 +28,9 @@ struct csr_graph{
 	[[nodiscard]] constexpr		bool							node_contains(node_t id) const;
 	[[nodiscard]] constexpr		bool							edge_contains(alone_edge in_edge) const;
 
+	[[nodiscard]] constexpr		std::size_t						node_size() const;
+	[[nodiscard]] constexpr		std::size_t						edge_size() const;
+
 	[[nodiscard]] constexpr		std::optional<std::size_t>		node_degree(node_t id) const;
 
 	[[nodiscard]] constexpr 	std::span<const node_t>			node_edges_range(node_t id) const;
@@ -124,6 +127,12 @@ constexpr		bool							csr_graph::edge_contains(alone_edge in_edge) const{
 	);
 }
 
+constexpr		std::size_t						csr_graph::node_size() const{
+	return node_vec_.size() - 1;
+}
+constexpr		std::size_t						csr_graph::edge_size() const{
+	return edge_vec_.size();
+}
 constexpr		std::optional<std::size_t>						csr_graph::node_degree(node_t id) const{
 	if constexpr (IS_csr_node_contains_checking){
 
@@ -146,6 +155,7 @@ constexpr 		std::span<const csr_graph::node_t>			csr_graph::node_edges_range(nod
 	}
 
 	auto span = std::span{edge_vec_};
+	// return span.subspan(node_vec_[id], *node_degree(id));
 	return span.subspan(node_vec_[id], node_vec_[id+1] - node_vec_[id]);
 }
 

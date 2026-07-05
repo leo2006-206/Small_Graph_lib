@@ -27,7 +27,7 @@ export	namespace Timing{
 				} else {
 					// A genuine error (e.g., the FIFO file doesn't exist at all)
 					std::perror("Failed to open control FIFO");
-					std::exit(1); 
+					// std::exit(1); 
 				}
 			}
 		}

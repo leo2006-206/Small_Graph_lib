@@ -1,6 +1,6 @@
 import std;
 import Helper;
-import Graph;
+// import Graph;
 import Small_Graph;
 
 #include <assert.h>
@@ -48,13 +48,15 @@ auto csr_load(SG::dyn_graph in_graph){
 	return g;
 }
 
+constexpr int NUM_LOOP = 100;
+
 auto dyn_test(const SG::dyn_graph& g){
 	std::size_t sum{};
 	
 	{
 		Timing::raii_perf_control pc;
 		Timing::print_timer t;
-		for(auto l = 0; l < 100; ++l)
+		for(auto l = 0; l < NUM_LOOP; ++l)
 
 		for(auto& [key, node] : g.node_table_){
 			for(auto dist : node.edges_span()){
@@ -72,9 +74,9 @@ auto csr_test(const SG::csr_graph& g){
 	std::size_t sum{};
 	
 	{
-		Timing::print_timer t;
 		Timing::raii_perf_control pc;
-		for(auto l = 0; l < 100; ++l)
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
 
 		for(auto ae : g.edges_range()){
 			sum += ae.source;
@@ -90,9 +92,9 @@ auto csr_test2(const SG::csr_graph& g){
 	std::size_t sum{};
 	
 	{
-		Timing::print_timer t;
 		Timing::raii_perf_control pc;
-		for(auto l = 0; l < 100; ++l)
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
 
 		g.for_each_edge([&sum](SG::alone_edge e){
 			sum += e.source;
@@ -102,6 +104,24 @@ auto csr_test2(const SG::csr_graph& g){
 	}
 
 	std::println("{}", sum);
+}
+
+auto dfs_test(const SG::csr_graph& g){
+	std::size_t num_edge{};
+
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
+
+		SG::dfs_loop(
+			g,
+			[&num_edge](SG::alone_edge){num_edge++;},
+			0
+		);
+	}
+
+	std::println("dfs loop run {}, result {}", NUM_LOOP, num_edge);
 }
 
 int main(void){
@@ -115,7 +135,8 @@ int main(void){
 
 	// dyn_test(g);
 	// csr_test(csr);
-	csr_test2(csr);
+	// csr_test2(csr);
+	dfs_test(csr);
 
 	return 0;
 }

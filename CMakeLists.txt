@@ -20,8 +20,15 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 add_compile_options(
 	-O3 -march=native
 	-Wall -Wextra -Wpedantic -Wconversion
+	# -fprofile-generate
+	# -fprofile-use
 	# -fconcepts-diagnostics-depth=2
 	# -fcontracts -fcontract-evaluation-semantic=enforce
+)
+
+add_link_options(
+	# -fprofile-generate
+	# -fprofile-use
 )
 
 # ==============================================================================
