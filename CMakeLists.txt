@@ -100,6 +100,7 @@ target_sources(
 		Module/Small_Graph/SG_static_csr.cppm
 		Module/Small_Graph/SG_core.cppm
 		Module/Small_Graph/SG_algorithm.cppm
+		Module/Small_Graph/SG_utility.cppm
 )
 target_link_libraries(small_graph_lib PRIVATE std_module helper_lib)
 

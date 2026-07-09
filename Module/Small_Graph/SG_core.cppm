@@ -7,8 +7,7 @@ import std;
 export namespace SG{
 	using node_id_t = std::uint32_t;
 
-	using csr_node_t= node_id_t;
-	using csr_edge_t= std::uint64_t;
+	using edge_offset_t	= std::uint64_t;
 
 	constexpr bool IS_simple_graph{true};
 

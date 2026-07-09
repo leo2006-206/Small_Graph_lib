@@ -13,11 +13,11 @@ constexpr bool IS_csr_node_contains_checking = true;
 struct csr_graph{
 	// whole class is const only;
 	// currently unweighted directed graph only
-	using node_t	= csr_node_t;
-	using edge_t	= csr_edge_t;
+	using csr_node_id_t		= node_id_t;
+	using csr_edge_offset_t	= edge_offset_t;
 	
-	const std::vector<edge_t>	node_vec_;
-	const std::vector<node_t>	edge_vec_;
+	const std::vector<csr_edge_offset_t>	node_vec_;
+	const std::vector<csr_node_id_t>		edge_vec_;
 	
 	csr_graph() = delete;
 	
@@ -25,17 +25,21 @@ struct csr_graph{
 	constexpr static			std::optional<csr_graph>		make_csr(dyn_graph in_graph);
 	constexpr static			std::optional<csr_graph>		make_csr_ref(dyn_graph& in_graph);
 
-	[[nodiscard]] constexpr		bool							node_contains(node_t id) const;
+	constexpr static			std::optional<csr_graph>		load_csr_binary(const std::filesystem::path& file_path);
+
+	constexpr		 			std::size_t						save_csr_binary(const std::filesystem::path& file_path) const;
+
+	[[nodiscard]] constexpr		bool							node_contains(csr_node_id_t id) const;
 	[[nodiscard]] constexpr		bool							edge_contains(alone_edge in_edge) const;
 
 	[[nodiscard]] constexpr		std::size_t						node_size() const;
 	[[nodiscard]] constexpr		std::size_t						edge_size() const;
 
-	[[nodiscard]] constexpr		std::optional<std::size_t>		node_degree(node_t id) const;
+	[[nodiscard]] constexpr		std::optional<std::size_t>		node_degree(csr_node_id_t id) const;
 
-	[[nodiscard]] constexpr 	std::span<const node_t>			node_edges_range(node_t id) const;
+	[[nodiscard]] constexpr 	std::span<const csr_node_id_t>	node_edges_range(csr_node_id_t id) const;
 
-	[[nodiscard]] constexpr		auto/*range<const node_t>*/		nodes_range() const;
+	[[nodiscard]] constexpr		auto/*range<csr_node_id_t>*/	nodes_range() const;
 	[[nodiscard]] constexpr		auto/*range<alone_edge>*/		edges_range() const;
 	
 	constexpr					void							for_each_edge(
@@ -43,8 +47,8 @@ struct csr_graph{
 
 	private:
 	csr_graph(
-		std::vector<edge_t>&& in_node_vec, 
-		std::vector<node_t>&& in_edge_vec 
+		std::vector<csr_edge_offset_t>&&	in_node_vec, 
+		std::vector<csr_node_id_t>&&		in_edge_vec 
 	): 
 	node_vec_(std::move(in_node_vec)),
 	edge_vec_(std::move(in_edge_vec)){}
@@ -73,16 +77,16 @@ constexpr		std::optional<csr_graph>		csr_graph::make_csr_ref(dyn_graph& in_graph
 	}
 
 	const auto& ready_graph = in_graph;
-	const std::size_t node_table_size = ready_graph.node_table_.size();
+	const std::size_t csr_node_id_table_size = ready_graph.node_table_.size();
 
-	std::vector<edge_t> node_vec;
-	std::vector<node_t> edge_vec;
+	std::vector<csr_edge_offset_t> node_vec;
+	std::vector<csr_node_id_t> edge_vec;
 
-	node_vec.reserve(node_table_size + 1);
-	edge_vec.reserve(node_table_size * 4);
+	node_vec.reserve(csr_node_id_table_size + 1);
+	edge_vec.reserve(csr_node_id_table_size * 4);
 
-	edge_t current_count{0};
-	for(auto packed_id : stdrv::iota(0uz, node_table_size)){
+	csr_edge_offset_t current_count{0};
+	for(auto packed_id : stdrv::iota(0uz, csr_node_id_table_size)){
 		node_vec.emplace_back(current_count);
 
 		for(auto dist : ready_graph.node_edges_span(static_cast<node_id_t>(packed_id))){
@@ -102,8 +106,75 @@ constexpr		std::optional<csr_graph>		csr_graph::make_csr_ref(dyn_graph& in_graph
 	);
 }
 
+constexpr		std::optional<csr_graph>		csr_graph::load_csr_binary(const std::filesystem::path& file_path){
+	if(std::filesystem::is_regular_file(file_path) == false){
+		return std::nullopt;
+	}
 
-constexpr		bool							csr_graph::node_contains(node_t id) const{
+	std::ifstream in(file_path, std::ios::binary);
+	
+	if(!in){
+		return std::nullopt;
+	}
+
+	std::size_t num_node{};
+	std::size_t num_edge{};
+
+	in.read(reinterpret_cast<char*>(&num_node), sizeof(std::size_t));
+	in.read(reinterpret_cast<char*>(&num_edge), sizeof(std::size_t));
+
+	std::vector<csr_edge_offset_t>	node_vec;
+	std::vector<csr_node_id_t>		edge_vec;
+	node_vec.resize(num_node);
+	edge_vec.resize(num_edge);
+
+	in.read(
+		reinterpret_cast<char*>(node_vec.data()), 
+		signed(num_node * sizeof(csr_edge_offset_t))
+	);
+	in.read(
+		reinterpret_cast<char*>(edge_vec.data()), 
+		signed(num_edge * sizeof(csr_node_id_t))
+	);
+
+	return csr_graph{std::move(node_vec), std::move(edge_vec)};
+}
+
+constexpr		std::size_t						csr_graph::save_csr_binary(const std::filesystem::path& file_path)const{
+	if(std::filesystem::is_regular_file(file_path) == false){
+		return 0;
+	}
+	std::ofstream out(file_path, std::ios::binary);
+	if(!out){
+		return 0;
+	}
+
+	std::size_t saved_bytes{};
+
+	std::size_t num_node = node_size();
+	std::size_t num_edge = edge_size();
+
+	auto write_counted = [&](const std::ofstream::char_type* char_ptr, std::streamsize len){
+		out.write(char_ptr, len);
+		saved_bytes += static_cast<std::size_t>(len);
+	};
+
+	write_counted(reinterpret_cast<const char*>(&num_node), sizeof(std::size_t));
+	write_counted(reinterpret_cast<const char*>(&num_edge), sizeof(std::size_t));
+
+	write_counted(
+		reinterpret_cast<const char*>(node_vec_.data()), 
+		signed(num_node * sizeof(csr_edge_offset_t))
+	);
+	write_counted(
+		reinterpret_cast<const char*>(edge_vec_.data()), 
+		signed(num_edge * sizeof(csr_node_id_t))
+	);
+
+	return saved_bytes;
+}
+
+constexpr		bool							csr_graph::node_contains(csr_node_id_t id) const{
 	if(id < (node_vec_.size() - 1)){
 		return true;
 	}
@@ -133,7 +204,7 @@ constexpr		std::size_t						csr_graph::node_size() const{
 constexpr		std::size_t						csr_graph::edge_size() const{
 	return edge_vec_.size();
 }
-constexpr		std::optional<std::size_t>						csr_graph::node_degree(node_t id) const{
+constexpr		std::optional<std::size_t>		csr_graph::node_degree(csr_node_id_t id) const{
 	if constexpr (IS_csr_node_contains_checking){
 
 		if(node_contains(id) == false){
@@ -145,7 +216,7 @@ constexpr		std::optional<std::size_t>						csr_graph::node_degree(node_t id) con
 	return node_vec_[id+1] - node_vec_[id];
 }
 
-constexpr 		std::span<const csr_graph::node_t>			csr_graph::node_edges_range(node_t id) const{
+constexpr 		std::span<const csr_graph::csr_node_id_t>			csr_graph::node_edges_range(csr_node_id_t id) const{
 	if constexpr (IS_csr_node_contains_checking){
 	
 		if(node_contains(id) == false){
@@ -159,19 +230,19 @@ constexpr 		std::span<const csr_graph::node_t>			csr_graph::node_edges_range(nod
 	return span.subspan(node_vec_[id], node_vec_[id+1] - node_vec_[id]);
 }
 
-constexpr		auto/*range<const node_t>*/		csr_graph::nodes_range() const{
+constexpr		auto/*range<const csr_node_id_t>*/		csr_graph::nodes_range() const{
 	return stdrv::iota(
-		static_cast<node_t>(0), 
-		static_cast<node_t>(node_vec_.size() - 1)
+		static_cast<csr_node_id_t>(0), 
+		static_cast<csr_node_id_t>(node_vec_.size() - 1)
 	);
 }
 constexpr		auto/*range<alone_edge>*/		csr_graph::edges_range() const{	
 	return nodes_range() 
 		| stdrv::transform(
-			[this](node_t source){
+			[this](csr_node_id_t source){
 			return node_edges_range(source)
 				| stdrv::transform(
-					[source](node_t dist){
+					[source](csr_node_id_t dist){
 						return alone_edge(source, dist);
 					}
 				);
@@ -183,9 +254,9 @@ constexpr		auto/*range<alone_edge>*/		csr_graph::edges_range() const{
 constexpr					void				csr_graph::for_each_edge(
 	std::invocable<alone_edge> auto&& functor
 ) const{
-	const auto num_node =static_cast<node_t>( node_vec_.size() - 1 );
-	for(node_t source{0}; source < num_node; ++source){
-		for(node_t dist : node_edges_range(source)){
+	const auto num_node =static_cast<csr_node_id_t>( node_vec_.size() - 1 );
+	for(csr_node_id_t source{0}; source < num_node; ++source){
+		for(csr_node_id_t dist : node_edges_range(source)){
 			functor(alone_edge{source, dist});
 		}
 	}

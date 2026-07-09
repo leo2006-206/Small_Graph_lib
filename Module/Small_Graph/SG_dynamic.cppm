@@ -74,6 +74,9 @@ struct	dyn_graph{
 		node_table_.reserve(reserve_size);
 	}
 
+	[[nodiscard]] constexpr		std::size_t/*O( 1 )*/		node_size() const;
+	[[nodiscard]] constexpr		std::size_t/*O( |E| )*/		edge_size() const;
+
 	[[nodiscard]] constexpr		bool						node_contains(node_id_t in_id) const;
 	[[nodiscard]] constexpr		bool						edge_contains(alone_edge in_edge) const;
 	[[nodiscard]] constexpr		bool						edge_contains(node_id_t source, node_id_t dist) const;
@@ -92,13 +95,17 @@ struct	dyn_graph{
 	constexpr					std::size_t/*failed count*/	remove_range(input_range_convertible<alone_edge> auto&& in_range);
 	
 	[[nodiscard]] constexpr		std::vector<alone_edge>		checking_edge_integrity(std::size_t reserve_size = 0) const;
+	
+	[[nodiscard]] constexpr		bool						need_packing_node_id() const;
+	[[nodiscard]] constexpr		std::vector<node_id_t>		need_packing_node_id_vec() const;
+
 	[[nodiscard]] constexpr		const_id_map_t				packing_node_id_map();
 	[[nodiscard]] constexpr		std::vector<node_id_t>		packing_node_id_vec();
 };
 
 }
 
-// implementation start here
+// dyn_node implementation start here
 namespace SG{
 
 namespace	stdr	= std::ranges;
@@ -242,9 +249,24 @@ void										dyn_node::sort_edges(){
 	stdr::sort(edge_vec_);
 }
 
+}
 
+// dyn_graph implementation start here
+namespace SG{
 
-// dyn_graph started here
+namespace	stdr	= std::ranges;
+namespace	stdrv	= std::ranges::views;
+
+constexpr		std::size_t/*O( 1 )*/		dyn_graph::node_size() const{
+	return node_table_.size();
+}
+constexpr		std::size_t/*O( |E| )*/		dyn_graph::edge_size() const{
+	std::size_t num_edge{};
+	for(const auto& [key, node] : node_table_){
+		num_edge += node.edge_vec_.size();
+	}
+	return num_edge;
+}
 
 constexpr		bool						dyn_graph::node_contains(node_id_t in_id) const{
 	return node_table_.contains(in_id);
@@ -362,8 +384,24 @@ constexpr		std::vector<alone_edge>		dyn_graph::checking_edge_integrity(std::size
 	return invalid_vec;
 }
 
-constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
-    if (node_table_.empty()) {
+constexpr		bool						dyn_graph::need_packing_node_id() const{
+	if (node_table_.empty()) {
+        return false;
+    }
+
+	auto iter = stdr::max_element(
+		node_table_,
+		std::less{},
+		&node_table_t::value_type::first
+	);
+
+	if(iter->first == (node_table_.size() - 1)){
+		return false;
+	}
+	return true;
+}
+constexpr		std::vector<node_id_t>		dyn_graph::need_packing_node_id_vec() const{
+	if (node_table_.empty()) {
         return {};
     }
 
@@ -376,8 +414,14 @@ constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
 
     stdr::sort(id_vec);
 
-    // Efficient packed check: If the max ID equals size - 1, it's packed [0, N-1]
-    if (id_vec.back() == id_vec.size() - 1uz) {
+	return id_vec;
+}
+
+constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
+
+	auto id_vec = need_packing_node_id_vec();
+	// if already packed
+	if (id_vec.back() == id_vec.size() - 1) {
         return {};
     }
 
@@ -419,18 +463,8 @@ constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
 }
 
 constexpr std::vector<node_id_t> dyn_graph::packing_node_id_vec() {
-    if (node_table_.empty()) {
-        return {};
-    }
-
-    std::vector<node_id_t> id_vec;
-    id_vec.reserve(node_table_.size());
-
-    for(const auto& [key, value] : node_table_){
-        id_vec.emplace_back(key);
-    }
-
-    stdr::sort(id_vec);
+    
+	auto id_vec = need_packing_node_id_vec();
 
     // Efficient packed check
     if (id_vec.back() == id_vec.size() - 1) {

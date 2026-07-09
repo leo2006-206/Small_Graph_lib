@@ -5,50 +5,40 @@ import Small_Graph;
 
 #include <assert.h>
 
-auto load_graph(const std::filesystem::path& file_path){
-	std::cout<< file_path << "\n";
+auto create_csr_binary_amazon_2003(){
+	auto current_path = std::filesystem::current_path();
+	auto data_path = current_path / "Dataset" / "amazon_product_2003/Amazon0601.txt";
 
-	SG::dyn_graph g;
-	std::size_t success_count{};
+	auto opt_graph = SG::utility::load_dir_unwei_dyn_g(data_path);
+	// SG::utility::print_g_stat(*opt_graph, 403394, 3387388);
+	
+	auto opt_csr = SG::csr_graph::make_csr_ref(*opt_graph);
+	// SG::utility::print_g_stat(*opt_csr);
 
-	std::ifstream file(file_path);
-	std::string line;
+	auto bin_path = data_path.parent_path() / "csr_binary_data.bin";
+	// std::ofstream create_file(bin_path);
 
-	while(std::getline(file, line)){
-		if(line.empty() || line[0] == '#'){
-			continue;
-		}
+	// opt_csr->save_csr_binary(bin_path);
 
-		std::ranges::replace(line, ',', ' ');
+	// auto opt_csr = SG::csr_graph::load_csr_binary(bin_path);
 
-		std::istringstream iss{line};
-
-		SG::node_id_t sour, dist;
-
-		if(iss >> sour >> dist){
-			success_count += g.insert_edge(sour, dist);
-		}
-	}
-
-	std::println("Original |V| = {}, |E| = {}", 403394, 3387388);
-	std::println("Graph |V| = {}, |E| = {}", g.node_table_.size(), success_count);
-	std::println("invalid v = {}", g.checking_edge_integrity().size());
-	std::println("packing vec size = {}", g.packing_node_id_vec().size());
-
-	return g;
+	return *opt_csr;
 }
 
-auto csr_load(SG::dyn_graph in_graph){
-	using namespace SG;
+auto load_print_pokec_social(){
+	auto current_path = std::filesystem::current_path();
+	auto data_path = current_path / "Dataset" / "pokec_social"/ "soc-pokec-relationships.txt";
 
-	auto g = *SG::csr_graph::make_csr(in_graph);
-	auto size = g.node_vec_.size() * sizeof(csr_graph::edge_t) + g.edge_vec_.size() * sizeof(csr_graph::node_t);
-	std::println("total size = {}", size);
+	auto opt_graph = SG::utility::load_dir_unwei_dyn_g(data_path, 1);
+	SG::utility::print_g_stat(*opt_graph, 1632803, 30622564);
+	
+	auto opt_csr = SG::csr_graph::make_csr_ref(*opt_graph);
+	SG::utility::print_g_stat(*opt_csr);
 
-	return g;
+	return *opt_csr;
 }
 
-constexpr int NUM_LOOP = 100;
+constexpr int NUM_LOOP = 1;
 
 auto dyn_test(const SG::dyn_graph& g){
 	std::size_t sum{};
@@ -124,19 +114,35 @@ auto dfs_test(const SG::csr_graph& g){
 	std::println("dfs loop run {}, result {}", NUM_LOOP, num_edge);
 }
 
+auto dfs_test2(const SG::csr_graph& g){
+
+	SG::utility::mem_distance md{};
+
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
+
+		md = SG::dfs_loop_mem_dis(
+			g,
+			0
+		);
+	}
+
+	std::println("dfs loop run {}, mean {}, std {}", NUM_LOOP, md.ms.get_mean(), md.ms.get_std());
+}
+
 int main(void){
 	Debug::clear_log();
 
-	auto current_path = std::filesystem::current_path();
-	auto data_path = current_path / "Dataset" / "amazon_product_2003/Amazon0601.txt";
-
-	auto g = load_graph(data_path);
-	auto csr = csr_load(g);
+	auto csr = create_csr_binary_amazon_2003();
+	// auto csr = load_print_pokec_social();
 
 	// dyn_test(g);
 	// csr_test(csr);
 	// csr_test2(csr);
-	dfs_test(csr);
+	// dfs_test(csr);
+	dfs_test2(csr);
 
 	return 0;
 }
