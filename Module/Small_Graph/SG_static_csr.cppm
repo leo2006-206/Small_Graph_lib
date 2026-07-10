@@ -107,7 +107,7 @@ constexpr		std::optional<csr_graph>		csr_graph::make_csr_ref(dyn_graph& in_graph
 }
 
 constexpr		std::optional<csr_graph>		csr_graph::load_csr_binary(const std::filesystem::path& file_path){
-	if(std::filesystem::is_regular_file(file_path) == false){
+	if(!std::filesystem::file_size(file_path) || !std::filesystem::is_regular_file(file_path)){
 		return std::nullopt;
 	}
 

@@ -8,20 +8,6 @@ import std;
 import :dynamic_graph;
 import :static_graph;
 
-// 1. Check if the compiler even supports 128-bit integers 
-#if defined(__SIZEOF_INT128__)
-
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wpedantic"
-   
-		using uint128_t = unsigned __int128;
-    
-	#pragma GCC diagnostic pop
-
-#else
-    #error "This code requires a compiler with 128-bit integer support."
-#endif
-
 export namespace SG::utility{
 
 std::string						nice_memory_str(const std::size_t num_bytes);
@@ -43,39 +29,6 @@ void							print_g_stat(
 );
 
 void							print_g_stat(const SG::csr_graph&	graph);
-
-struct mean_std{
-	std::uint64_t	count  = 0;
-	std::uint64_t	sum    = 0;
-	uint128_t		sum_sq = 0;
-
-	constexpr	void			add(std::uint64_t x);
-	constexpr	void			reset();
-	constexpr	std::uint64_t	get_mean() const;
-	constexpr	std::uint64_t	get_var() const;
-	constexpr	std::uint64_t	get_std() const;
-};
-
-struct mem_distance{
-	SG::node_id_t	prev_source{0};
-	std::intptr_t	prev_address{0};
-	mean_std		ms{};
-
-	[[gnu::always_inline]]
-	constexpr inline
-	void operator()(SG::alone_edge e, std::intptr_t p) noexcept{
-		if(prev_address == 0)[[unlikely]]{
-			// if first time
-			prev_source = e.source;
-		}
-		if(e.source != prev_source)[[likely]]{
-			auto diff = static_cast<std::uint64_t>(std::abs(prev_address - p));
-			ms.add(diff);
-			prev_source = e.source;
-		}
-		prev_address = p;
-	}
-};
 
 }
 
@@ -212,46 +165,4 @@ void							print_g_stat(const SG::csr_graph&	graph){
 
 // struct implementation start here
 namespace SG::utility{
-
-constexpr void					mean_std::add(std::uint64_t x){
-	count++;
-	sum += x;
-
-	uint128_t x128 = x;
-	sum_sq += x128 * x128; 
-}
-constexpr void					mean_std::reset(){
-	count = 0;
-	sum = 0;
-	sum_sq = 0;
-}
-
-constexpr std::uint64_t			mean_std::get_mean() const {
-	if (count == 0) return 0;
-	return sum / count;
-}
-
-constexpr std::uint64_t			mean_std::get_var() const{
-	if (count == 0) return 0;
-	
-	double d_count = static_cast<double>(count);
-	double mean = static_cast<double>(sum) / d_count;
-	double mean_of_squares = static_cast<double>(sum_sq) / d_count;
-	double variance = mean_of_squares - (mean * mean);
-	return static_cast<std::uint64_t>(variance);
-}
-
-constexpr std::uint64_t			mean_std::get_std() const {
-	if (count == 0) return 0;
-	
-	double d_count = static_cast<double>(count);
-	double mean = static_cast<double>(sum) / d_count;
-	double mean_of_squares = static_cast<double>(sum_sq) / d_count;
-	double variance = mean_of_squares - (mean * mean);
-	if (variance < 0.0){
-		variance = 0.0;
-	} 
-	return static_cast<std::uint64_t>(std::sqrt(variance));
-}
-
 }

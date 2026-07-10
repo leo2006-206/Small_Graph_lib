@@ -5,68 +5,51 @@ import Small_Graph;
 
 #include <assert.h>
 
-auto create_csr_binary_amazon_2003(){
-	auto current_path = std::filesystem::current_path();
-	auto data_path = current_path / "Dataset" / "amazon_product_2003/Amazon0601.txt";
-
-	auto opt_graph = SG::utility::load_dir_unwei_dyn_g(data_path);
-	// SG::utility::print_g_stat(*opt_graph, 403394, 3387388);
-	
-	auto opt_csr = SG::csr_graph::make_csr_ref(*opt_graph);
-	// SG::utility::print_g_stat(*opt_csr);
-
-	auto bin_path = data_path.parent_path() / "csr_binary_data.bin";
-	// std::ofstream create_file(bin_path);
-
-	// opt_csr->save_csr_binary(bin_path);
-
-	// auto opt_csr = SG::csr_graph::load_csr_binary(bin_path);
-
-	return *opt_csr;
-}
-
-auto load_print_pokec_social(){
-	auto current_path = std::filesystem::current_path();
-	auto data_path = current_path / "Dataset" / "pokec_social"/ "soc-pokec-relationships.txt";
-
-	auto opt_graph = SG::utility::load_dir_unwei_dyn_g(data_path, 1);
-	SG::utility::print_g_stat(*opt_graph, 1632803, 30622564);
-	
-	auto opt_csr = SG::csr_graph::make_csr_ref(*opt_graph);
-	SG::utility::print_g_stat(*opt_csr);
-
-	return *opt_csr;
-}
-
-constexpr int NUM_LOOP = 1;
-
-auto dyn_test(const SG::dyn_graph& g){
-	std::size_t sum{};
-	
-	{
-		Timing::raii_perf_control pc;
-		Timing::print_timer t;
-		for(auto l = 0; l < NUM_LOOP; ++l)
-
-		for(auto& [key, node] : g.node_table_){
-			for(auto dist : node.edges_span()){
-				sum += node.source_id_;
-				sum ^= dist;
-			}
+auto create_csr_binary(const std::filesystem::path& file_path, const std::string_view bin_file){
+	using namespace SG;
+	auto binary_path = file_path.parent_path() / bin_file;
+	if(std::filesystem::exists(binary_path)){
+		if(std::filesystem::file_size(binary_path)){
+			std::println("graph binary `{}` exists", file_path.parent_path().stem().string());
+			return;
 		}
-	
+	}
+	else{
+		std::ofstream _(binary_path, std::ios::binary);
+		std::println("graph binary `{}` not exist, created new binary file", file_path.parent_path().stem().string());
 	}
 
-	std::println("{}", sum);
+	auto opt_graph = utility::load_dir_unwei_csr_g(file_path);
+	auto written_bytes = opt_graph->save_csr_binary(binary_path);
+	utility::print_g_stat(*opt_graph);
+	std::println("written binary bytes = {}, filesystem::file_size = {}", 
+		written_bytes, 
+		std::filesystem::file_size(binary_path)
+	);
 }
 
-auto csr_test(const SG::csr_graph& g){
+auto load_csr_binary(const std::filesystem::path& file_path, const std::string_view bin_file){
+	using namespace SG;
+	auto binary_path = file_path.parent_path() / bin_file;
+	auto opt_graph = csr_graph::load_csr_binary(binary_path);
+	if(opt_graph.has_value()){
+		std::println("loaded graph");
+		utility::print_g_stat(*opt_graph);
+		return *opt_graph;
+	}
+	else{
+		std::println("failed to load graph, path = {}", binary_path.string());
+		std::exit(0);
+	}
+}
+
+auto csr_test(const SG::csr_graph& g, int NUM_LOOP){
 	std::size_t sum{};
 	
 	{
 		Timing::raii_perf_control pc;
 		Timing::print_timer t;
-		for(auto l = 0; l < NUM_LOOP; ++l)
+		for(int l = 0; l < NUM_LOOP; ++l)
 
 		for(auto ae : g.edges_range()){
 			sum += ae.source;
@@ -78,7 +61,7 @@ auto csr_test(const SG::csr_graph& g){
 	std::println("{}", sum);
 }
 
-auto csr_test2(const SG::csr_graph& g){
+auto csr_test2(const SG::csr_graph& g, int NUM_LOOP){
 	std::size_t sum{};
 	
 	{
@@ -96,7 +79,7 @@ auto csr_test2(const SG::csr_graph& g){
 	std::println("{}", sum);
 }
 
-auto dfs_test(const SG::csr_graph& g){
+auto dfs_test(const SG::csr_graph& g, int NUM_LOOP){
 	std::size_t num_edge{};
 
 	{
@@ -114,9 +97,9 @@ auto dfs_test(const SG::csr_graph& g){
 	std::println("dfs loop run {}, result {}", NUM_LOOP, num_edge);
 }
 
-auto dfs_test2(const SG::csr_graph& g){
+auto dfs_test2(const SG::csr_graph& g, int NUM_LOOP){
 
-	SG::utility::mem_distance md{};
+	SG::mem_distance md{};
 
 	{
 		Timing::raii_perf_control pc;
@@ -133,16 +116,29 @@ auto dfs_test2(const SG::csr_graph& g){
 }
 
 int main(void){
-	Debug::clear_log();
 
-	auto csr = create_csr_binary_amazon_2003();
-	// auto csr = load_print_pokec_social();
+	const auto binary_file_name = std::string_view("csr_binary_data.bin");
+	auto current_path = std::filesystem::current_path();
+	
+	auto amazon_path = current_path / "Dataset/amazon_product_2003/Amazon0601.txt";
+	auto pokec_social = current_path / "Dataset/pokec_social/soc-pokec-relationships.txt";
 
-	// dyn_test(g);
-	// csr_test(csr);
-	// csr_test2(csr);
-	// dfs_test(csr);
-	dfs_test2(csr);
+	create_csr_binary(amazon_path, binary_file_name);
+	create_csr_binary(pokec_social, binary_file_name);
+
+	// auto ama_csr = load_csr_binary(amazon_path, binary_file_name);
+	auto pok_csr = load_csr_binary(pokec_social, binary_file_name);
+
+	auto benckmark= [](const SG::csr_graph& csr){
+		const int NUM_LOOP = 1;
+
+		// csr_test(csr, NUM_LOOP);
+		// csr_test2(csr, NUM_LOOP);
+		// dfs_test(csr, NUM_LOOP);
+		dfs_test2(csr, NUM_LOOP);
+	};
+
+	benckmark(pok_csr);
 
 	return 0;
 }
