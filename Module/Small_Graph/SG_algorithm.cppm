@@ -37,6 +37,13 @@ concept is_node_edges_range_graph = requires(const graph_t& g,SG::node_id_t id) 
 	requires std::unsigned_integral<SG::node_id_t>;
 };
 
+template<typename visited_t>
+concept is_visited = requires (visited_t& v, SG::node_id_t id){
+	{ v.is_visited(id) }	-> std::same_as<bool>;
+	{ v.set_visited(id) }	-> std::same_as<bool>;
+	{ v.fetch_set_visited(id)}	-> std::same_as<bool>;
+};
+
 
 struct mean_std{
 	std::uint64_t	count  = 0;
@@ -76,13 +83,41 @@ struct visited_bitvec{
 
 	explicit			visited_bitvec() = delete;
 	explicit constexpr	visited_bitvec(std::size_t num_node){
-		bit_vec_.resize(num_node, 0);
+		bit_vec_.resize((num_node + 63) / 64, 0);
 	}
 
 	constexpr	bool	is_visited(SG::node_id_t node_index) const;
 	constexpr	bool	set_visited(SG::node_id_t node_index);
 	constexpr	bool	fetch_set_visited(SG::node_id_t node_index);
 };
+
+struct next_visited_bitvec{
+	visited_bitvec	visit_vec_;
+	std::size_t		word_index;
+
+	explicit			next_visited_bitvec() = delete;
+	explicit constexpr	next_visited_bitvec(std::size_t num_node)
+	: visit_vec_(num_node), word_index(0){}
+
+	constexpr	std::optional<SG::node_id_t>	next_unvisited();
+	constexpr	bool	is_visited(SG::node_id_t node_index) const{
+		return visit_vec_.is_visited(node_index);
+	}
+	constexpr	bool	set_visited(SG::node_id_t node_index){
+		return visit_vec_.set_visited(node_index);
+	}
+	constexpr	bool	fetch_set_visited(SG::node_id_t node_index){
+		return visit_vec_.fetch_set_visited(node_index);
+	}
+};
+
+constexpr void dfs_core(
+	const is_node_edges_range_graph	auto&	graph,
+	std::vector<SG::node_id_t>&				stack,	
+	is_visited						auto&	visit_vec,
+	std::invocable<SG::alone_edge>	auto&&	discover_edge,
+	SG::node_id_t							start_id	
+);
 
 constexpr void dfs_loop(
 	const is_node_edges_range_graph	auto&	graph,
@@ -97,6 +132,11 @@ constexpr void dfs_loop_all(
 );
 
 constexpr SG::mem_distance dfs_loop_mem_dis(
+	const is_node_edges_range_graph	auto&	graph,
+	SG::node_id_t							start_id
+);
+
+constexpr SG::mem_distance bfs_loop_mem_dis(
 	const is_node_edges_range_graph	auto&	graph,
 	SG::node_id_t							start_id
 );
@@ -149,17 +189,30 @@ constexpr std::uint64_t			mean_std::get_std() const {
 }
 
 constexpr	bool	visited_bitvec::is_visited(SG::node_id_t node_index) const{
-	return bit_vec_[node_index >> 6 /*2^6 == 64*/] & (1 << (node_index & (64 - 1)));
+	return bit_vec_[node_index >> 6 /*2^6 == 64*/] & (1ULL << (node_index & (64 - 1)));
 }
 constexpr	bool	visited_bitvec::set_visited(SG::node_id_t node_index){
-	return bit_vec_[node_index >> 6 /*2^6 == 64*/] |= (1 << (node_index & (64 - 1)));
+	return bit_vec_[node_index >> 6 /*2^6 == 64*/] |= (1ULL << (node_index & (64 - 1)));
 }
 constexpr	bool	visited_bitvec::fetch_set_visited(SG::node_id_t node_index){
 	auto& bit_pos = bit_vec_[node_index >> 6 /*2^6 == 64*/];
-	const std::uint64_t bitmask = (1 << (node_index & (64 - 1)));
+	const std::uint64_t bitmask = (1ULL << (node_index & (64 - 1)));
 	bool result = bit_pos & bitmask;
 	bit_pos |= bitmask;
 	return result;
+}
+
+constexpr	std::optional<SG::node_id_t>	next_visited_bitvec::next_unvisited(){
+	while(word_index < visit_vec_.bit_vec_.size()){
+		const auto& word = visit_vec_.bit_vec_[word_index];
+		if( word != (~0ULL) ){
+			int bit_pos = std::countr_one(word);
+			return static_cast<node_id_t>((word_index * 64) + std::size_t(bit_pos));
+		}
+		word_index++;
+	}
+
+	return std::nullopt;
 }
 
 }
@@ -167,6 +220,29 @@ constexpr	bool	visited_bitvec::fetch_set_visited(SG::node_id_t node_index){
 
 // function impl
 namespace SG {
+
+constexpr void dfs_core(
+	const is_node_edges_range_graph	auto&	graph,
+	std::vector<SG::node_id_t>&				stack,	
+	is_visited						auto&	visit_vec,
+	std::invocable<SG::alone_edge>	auto&&	discover_edge,
+	SG::node_id_t							start_id	
+){
+	stack.emplace_back(start_id);
+	visit_vec.set_visited(start_id);
+
+	while(!stack.empty()){
+		const auto current_node = stack.back();
+		stack.pop_back();
+
+		for(const auto current_edge : graph.node_edges_range(current_node)){
+			discover_edge(alone_edge{current_node, current_edge});
+			if(!visit_vec.fetch_set_visited(current_edge))[[unlikely]]{
+				stack.emplace_back(current_edge);
+			}
+		}
+	}
+}
 
 // __attribute__((noinline))
 constexpr void dfs_loop(
@@ -178,35 +254,17 @@ constexpr void dfs_loop(
 		return;
 	}
 
-	constexpr auto cal_offset = [](node_id_t id) -> std::uint64_t{
-		return 1 << (id & 63);
-	};
-
 	std::vector<node_id_t> stack;
-	std::vector<std::uint64_t> visit_vec;
-	visit_vec.resize((graph.node_size() >> 6) + 1, 0);
+	visited_bitvec visit_vec(graph.node_size());
 	stack.reserve(graph.node_size() >> 1);
 
-	stack.emplace_back(start_id);
-	visit_vec[start_id >> 6] |= cal_offset(start_id);
-
-	while(!stack.empty()){
-		const auto current_node = stack.back();
-		stack.pop_back();
-
-		for(const auto current_edge : graph.node_edges_range(current_node)){
-
-			discover_edge(alone_edge{current_node, current_edge});
-
-			auto offset = cal_offset(current_edge);
-			auto& bit_pos = visit_vec[current_edge >> 6];
-
-			if((bit_pos & offset) == false)[[unlikely]]{
-				bit_pos |= offset;
-				stack.emplace_back(current_edge);
-			}
-		}
-	}
+	dfs_core(
+		graph,
+		stack,
+		visit_vec,
+		discover_edge,
+		start_id
+	);
 }
 
 constexpr void dfs_loop_all(
@@ -218,35 +276,31 @@ constexpr void dfs_loop_all(
 		return;
 	}
 
-	constexpr auto cal_offset = [](node_id_t id) -> std::uint64_t{
-		return 1 << (id & 63);
-	};
-
 	std::vector<node_id_t> stack;
-	std::vector<std::uint64_t> visit_vec;
-	visit_vec.resize((graph.node_size() >> 6) + 1, 0);
+	next_visited_bitvec visit_vec(graph.node_size());
 	stack.reserve(graph.node_size() >> 1);
 
-	stack.emplace_back(start_id);
-	visit_vec[start_id >> 6] |= cal_offset(start_id);
+	// std::size_t num_sub_g{};
 
-	while(!stack.empty()){
-		const auto current_node = stack.back();
-		stack.pop_back();
+	for(
+		std::optional<node_id_t> opt_start{start_id};
+		opt_start.has_value();
+		opt_start = visit_vec.next_unvisited()
+	){
+		auto& this_start = *opt_start;
 
-		for(const auto current_edge : graph.node_edges_range(current_node)){
+		dfs_core(
+			graph,
+			stack,
+			visit_vec,
+			discover_edge,
+			this_start
+		);
 
-			discover_edge(alone_edge{current_node, current_edge});
-
-			auto offset = cal_offset(current_edge);
-			auto& bit_pos = visit_vec[current_edge >> 6];
-
-			if((bit_pos & offset) == false)[[unlikely]]{
-				bit_pos |= offset;
-				stack.emplace_back(current_edge);
-			}
-		}
+		// num_sub_g++;
 	}
+
+	// std::println("\nfinal number sub graph = {}", num_sub_g);
 }
 
 constexpr SG::mem_distance dfs_loop_mem_dis(
@@ -257,36 +311,59 @@ constexpr SG::mem_distance dfs_loop_mem_dis(
 		return {};
 	}
 
-	constexpr auto cal_offset = [](node_id_t id) -> std::uint64_t{
-		return 1 << (id & 63);
-	};
-
 	std::vector<node_id_t> stack;
-	std::vector<std::uint64_t> visit_vec;
-	visit_vec.resize((graph.node_size() >> 6) + 1, 0);
+	visited_bitvec visit_vec(graph.node_size());
 	stack.reserve(graph.node_size() >> 1);
 
-	SG::mem_distance md{};
+	mem_distance md{};
 	stack.emplace_back(start_id);
-	visit_vec[start_id >> 6] |= cal_offset(start_id);
+	visit_vec.set_visited(start_id);
 
 	while(!stack.empty()){
 		const auto current_node = stack.back();
 		stack.pop_back();
 
 		for(const auto& current_edge : graph.node_edges_range(current_node)){
-
 			md(
 				alone_edge{current_node, current_edge},
 				reinterpret_cast<std::intptr_t>(&current_edge)
 			);
-
-			auto offset = cal_offset(current_edge);
-			auto& bit_pos = visit_vec[current_edge >> 6];
-
-			if((bit_pos & offset) == false)[[unlikely]]{
-				bit_pos |= offset;
+			if(!visit_vec.fetch_set_visited(current_edge))[[unlikely]]{
 				stack.emplace_back(current_edge);
+			}
+		}
+	}
+
+	return md;
+}
+
+constexpr SG::mem_distance bfs_loop_mem_dis(
+	const is_node_edges_range_graph	auto&	graph,
+	SG::node_id_t							start_id
+){	
+	if(!graph.node_contains(start_id)){
+		return {};
+	}
+
+	std::queue<node_id_t, std::deque<node_id_t>> queue;
+	visited_bitvec visit_vec(graph.node_size());
+	// queue.reserve(graph.node_size() >> 1);
+
+	mem_distance md{};
+	queue.push(start_id);
+	visit_vec.set_visited(start_id);
+
+	while(!queue.empty()){
+		const auto current_node = queue.front();
+		queue.pop();
+
+		for(const auto& current_edge : graph.node_edges_range(current_node)){
+			md(
+				alone_edge{current_node, current_edge},
+				reinterpret_cast<std::intptr_t>(&current_edge)
+			);
+			if(!visit_vec.fetch_set_visited(current_edge))[[unlikely]]{
+				queue.push(current_edge);
 			}
 		}
 	}

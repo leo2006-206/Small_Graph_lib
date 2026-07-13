@@ -14,6 +14,8 @@ export	namespace Timing{
 	struct perf_control {
 		int ctl_fd{-1};
 
+		perf_control(const perf_control&) = delete;
+
 		// Accept the path as a parameter, defaulting to your local fifo
 		perf_control(const char* fifo_path = "./perf_control.fifo") {
 			// Use O_NONBLOCK so the program doesn't hang if perf isn't running

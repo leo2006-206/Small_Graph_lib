@@ -1,0 +1,146 @@
+Graph: $ bash ./run.sh main clang stat
+==================================================
+  Building and processing with: CLANG (C++)
+==================================================
+cmake --build build_clang
+ninja: no work to do.
+
+Events disabled
+Events enabled
+graph binary `amazon_product_2003` exists
+graph binary `pokec_social` exists
+graph binary `uk_2002` exists
+loaded graph amazon_product_2003
+CSR_graph	|V| = 403393, 	|E| = 3387388
+	sizeof( node_vector )	= 3.23 MB (3.08 MiB)
+	sizeof( edge_vector )	= 13.55 MB (12.92 MiB)
+	Sum sizeof( CSR_graph )	= 16.78 MB (16.00 MiB)
+
+	Duration  = 18.057ms
+bfs loop run 1, count 401838, mean 1438933, std 2080918
+Events disabled
+
+ Performance counter stats for 'taskset -c 8 ./build_clang/main':
+
+        18,072,915      task-clock                       #    0.354 CPUs utilized             
+                 0      context-switches                 #    0.000 /sec                      
+                 0      cpu-migrations                   #    0.000 /sec                      
+                77      page-faults                      #    4.261 K/sec                     
+        70,571,682      cpu_core/instructions/           #    1.08  insn per cycle            
+        65,565,732      cpu_core/cycles/                 #    3.628 GHz                       
+        10,890,433      cpu_core/branches/               #  602.583 M/sec                     
+           476,647      cpu_core/branch-misses/          #    4.38% of all branches           
+ #     47.5 %  tma_backend_bound      
+                                                  #     26.7 %  tma_bad_speculation    
+                                                  #      8.7 %  tma_frontend_bound     
+                                                  #     17.1 %  tma_retiring           
+        13,764,441      cpu_core/L1-dcache-loads/        #  761.606 M/sec                     
+         1,551,717      cpu_core/L1-dcache-load-misses/  #   11.27% of all L1-dcache accesses 
+           517,201      cpu_core/LLC-loads/              #   28.617 M/sec                     
+            50,090      cpu_core/LLC-load-misses/        #    9.68% of all LL-cache accesses  
+
+       0.051060950 seconds time elapsed
+
+       0.000000000 seconds user
+       0.000000000 seconds sys
+
+
+
+
+
+Graph: $ bash ./run.sh main clang stat
+==================================================
+  Building and processing with: CLANG (C++)
+==================================================
+cmake --build build_clang
+[4/4] Linking CXX executable main
+
+Events disabled
+Events enabled
+Events disabled
+graph binary `amazon_product_2003` exists
+graph binary `pokec_social` exists
+graph binary `uk_2002` exists
+loaded graph pokec_social
+CSR_graph	|V| = 1632802, 	|E| = 30622564
+	sizeof( node_vector )	= 13.06 MB (12.46 MiB)
+	sizeof( edge_vector )	= 122.49 MB (116.82 MiB)
+	Sum sizeof( CSR_graph )	= 135.55 MB (129.27 MiB)
+
+	Duration  = 190.469ms
+bfs loop run 1, count 1313194, mean 12427482, std 21381035
+
+ Performance counter stats for 'taskset -c 8 ./build_clang/main':
+
+       190,561,512      task-clock                       #    0.451 CPUs utilized             
+                 0      context-switches                 #    0.000 /sec                      
+                 0      cpu-migrations                   #    0.000 /sec                      
+               824      page-faults                      #    4.324 K/sec                     
+       476,836,884      cpu_core/instructions/           #    0.79  insn per cycle            
+       600,839,407      cpu_core/cycles/                 #    3.153 GHz                       
+        76,618,356      cpu_core/branches/               #  402.066 M/sec                     
+         2,888,310      cpu_core/branch-misses/          #    3.77% of all branches           
+ #     58.9 %  tma_backend_bound      
+                                                  #     16.6 %  tma_bad_speculation    
+                                                  #      8.6 %  tma_frontend_bound     
+                                                  #     15.9 %  tma_retiring           
+        87,169,458      cpu_core/L1-dcache-loads/        #  457.435 M/sec                     
+        21,999,475      cpu_core/L1-dcache-load-misses/  #   25.24% of all L1-dcache accesses 
+         3,629,141      cpu_core/LLC-loads/              #   19.044 M/sec                     
+         1,651,548      cpu_core/LLC-load-misses/        #   45.51% of all LL-cache accesses  
+
+       0.422268135 seconds time elapsed
+
+       0.000000000 seconds user
+       0.000000000 seconds sys
+
+
+
+
+
+Graph: $ bash ./run.sh main clang stat
+==================================================
+  Building and processing with: CLANG (C++)
+==================================================
+cmake --build build_clang
+[4/4] Linking CXX executable main
+
+Events disabled
+Events enabled
+Events disabled
+graph binary `amazon_product_2003` exists
+graph binary `pokec_social` exists
+graph binary `uk_2002` exists
+loaded graph uk_2002
+CSR_graph	|V| = 18483185, 	|E| = 292243663
+	sizeof( node_vector )	= 147.87 MB (141.02 MiB)
+	sizeof( edge_vector )	= 1.17 GB (1.09 GiB)
+	Sum sizeof( CSR_graph )	= 1.32 GB (1.23 GiB)
+
+	Duration  = 803.650ms
+bfs loop run 1, count 15148169, mean 21284590, std 110539091
+
+ Performance counter stats for 'taskset -c 8 ./build_clang/main':
+
+       803,410,814      task-clock                       #    0.227 CPUs utilized             
+                 8      context-switches                 #    9.958 /sec                      
+                 0      cpu-migrations                   #    0.000 /sec                      
+             3,136      page-faults                      #    3.903 K/sec                     
+     4,687,192,376      cpu_core/instructions/           #    1.58  insn per cycle            
+     2,958,965,336      cpu_core/cycles/                 #    3.683 GHz                       
+       745,670,088      cpu_core/branches/               #  928.131 M/sec                     
+        18,127,962      cpu_core/branch-misses/          #    2.43% of all branches           
+ #     49.4 %  tma_backend_bound      
+                                                  #     17.5 %  tma_bad_speculation    
+                                                  #      8.4 %  tma_frontend_bound     
+                                                  #     24.7 %  tma_retiring           
+       865,703,563      cpu_core/L1-dcache-loads/        #    1.078 G/sec                     
+        15,206,022      cpu_core/L1-dcache-load-misses/  #    1.76% of all L1-dcache accesses 
+         8,537,733      cpu_core/LLC-loads/              #   10.627 M/sec                     
+         5,515,941      cpu_core/LLC-load-misses/        #   64.61% of all LL-cache accesses  
+
+       3.541645835 seconds time elapsed
+
+       0.000000000 seconds user
+       0.000000000 seconds sys
+

@@ -19,7 +19,13 @@ auto create_csr_binary(const std::filesystem::path& file_path, const std::string
 		std::println("graph binary `{}` not exist, created new binary file", file_path.parent_path().stem().string());
 	}
 
+	Timing::print_timer _("Creating csr binary");
+
 	auto opt_graph = utility::load_dir_unwei_csr_g(file_path);
+	if(opt_graph.has_value() == false){
+		std::println("graph loading failed with {}, exit", file_path.parent_path().stem().string());
+		std::exit(0);
+	}
 	auto written_bytes = opt_graph->save_csr_binary(binary_path);
 	utility::print_g_stat(*opt_graph);
 	std::println("written binary bytes = {}, filesystem::file_size = {}", 
@@ -33,7 +39,7 @@ auto load_csr_binary(const std::filesystem::path& file_path, const std::string_v
 	auto binary_path = file_path.parent_path() / bin_file;
 	auto opt_graph = csr_graph::load_csr_binary(binary_path);
 	if(opt_graph.has_value()){
-		std::println("loaded graph");
+		std::println("loaded graph {}", file_path.parent_path().stem().string());
 		utility::print_g_stat(*opt_graph);
 		return *opt_graph;
 	}
@@ -80,7 +86,7 @@ auto csr_test2(const SG::csr_graph& g, int NUM_LOOP){
 }
 
 auto dfs_test(const SG::csr_graph& g, int NUM_LOOP){
-	std::size_t num_edge{};
+	std::size_t num_edge{0};
 
 	{
 		Timing::raii_perf_control pc;
@@ -94,10 +100,10 @@ auto dfs_test(const SG::csr_graph& g, int NUM_LOOP){
 		);
 	}
 
-	std::println("dfs loop run {}, result {}", NUM_LOOP, num_edge);
+	std::println("dfs loop run {}, num looped edge {}", NUM_LOOP, num_edge);
 }
 
-auto dfs_test2(const SG::csr_graph& g, int NUM_LOOP){
+auto dfs_test_mem(const SG::csr_graph& g, int NUM_LOOP){
 
 	SG::mem_distance md{};
 
@@ -112,7 +118,45 @@ auto dfs_test2(const SG::csr_graph& g, int NUM_LOOP){
 		);
 	}
 
-	std::println("dfs loop run {}, mean {}, std {}", NUM_LOOP, md.ms.get_mean(), md.ms.get_std());
+	std::println("dfs loop run {}, count {}, mean {}, std {}", 
+		NUM_LOOP,md.ms.count, md.ms.get_mean(), md.ms.get_std());
+}
+
+auto dfs_all_test(const SG::csr_graph& g, int NUM_LOOP){
+	std::size_t num_edge{};
+
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
+
+		SG::dfs_loop_all(
+			g,
+			[&num_edge](SG::alone_edge){num_edge++;},
+			0
+		);
+	}
+
+	std::println("dfs_loop_all run {}, num looped edge {}", NUM_LOOP, num_edge);
+}
+
+auto bfs_test_mem(const SG::csr_graph& g, int NUM_LOOP){
+
+	SG::mem_distance md{};
+
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		for(auto l = 0; l < NUM_LOOP; ++l)
+
+		md = SG::bfs_loop_mem_dis(
+			g,
+			0
+		);
+	}
+
+	std::println("bfs loop run {}, count {}, mean {}, std {}", 
+		NUM_LOOP,md.ms.count, md.ms.get_mean(), md.ms.get_std());
 }
 
 int main(void){
@@ -122,12 +166,15 @@ int main(void){
 	
 	auto amazon_path = current_path / "Dataset/amazon_product_2003/Amazon0601.txt";
 	auto pokec_social = current_path / "Dataset/pokec_social/soc-pokec-relationships.txt";
+	auto uk2002 = current_path / "Dataset/uk_2002/uk_2002_edgelist.txt";
 
 	create_csr_binary(amazon_path, binary_file_name);
 	create_csr_binary(pokec_social, binary_file_name);
+	create_csr_binary(uk2002, binary_file_name);
 
-	// auto ama_csr = load_csr_binary(amazon_path, binary_file_name);
-	auto pok_csr = load_csr_binary(pokec_social, binary_file_name);
+	// auto csr = load_csr_binary(amazon_path, binary_file_name);
+	// auto csr = load_csr_binary(pokec_social, binary_file_name);
+	auto csr = load_csr_binary(uk2002, binary_file_name);
 
 	auto benckmark= [](const SG::csr_graph& csr){
 		const int NUM_LOOP = 1;
@@ -135,10 +182,13 @@ int main(void){
 		// csr_test(csr, NUM_LOOP);
 		// csr_test2(csr, NUM_LOOP);
 		// dfs_test(csr, NUM_LOOP);
-		dfs_test2(csr, NUM_LOOP);
+		// dfs_test_mem(csr, NUM_LOOP);
+		// dfs_all_test(csr, NUM_LOOP);
+		bfs_test_mem(csr, NUM_LOOP);
+
 	};
 
-	benckmark(pok_csr);
+	benckmark(csr);
 
 	return 0;
 }
