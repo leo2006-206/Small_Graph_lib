@@ -421,7 +421,7 @@ constexpr		dyn_graph::const_id_map_t	dyn_graph::packing_node_id_map() {
 
 	auto id_vec = need_packing_node_id_vec();
 	// if already packed
-	if (id_vec.back() == id_vec.size() - 1) {
+	if (id_vec.empty() || id_vec.back() == id_vec.size() - 1) {
         return {};
     }
 
@@ -467,7 +467,7 @@ constexpr std::vector<node_id_t> dyn_graph::packing_node_id_vec() {
 	auto id_vec = need_packing_node_id_vec();
 
     // Efficient packed check
-    if (id_vec.back() == id_vec.size() - 1) {
+    if (id_vec.empty() || id_vec.back() == id_vec.size() - 1) {
         return {};
     }
 

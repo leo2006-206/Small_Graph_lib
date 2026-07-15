@@ -125,25 +125,25 @@ constexpr		std::optional<csr_graph>		csr_graph::load_csr_binary(const std::files
 
 	std::vector<csr_edge_offset_t>	node_vec;
 	std::vector<csr_node_id_t>		edge_vec;
-	node_vec.resize(num_node);
+	node_vec.resize(num_node + 1);
 	edge_vec.resize(num_edge);
 
 	in.read(
 		reinterpret_cast<char*>(node_vec.data()), 
-		signed(num_node * sizeof(csr_edge_offset_t))
+		signed((num_node + 1) * sizeof(csr_edge_offset_t))
 	);
 	in.read(
 		reinterpret_cast<char*>(edge_vec.data()), 
 		signed(num_edge * sizeof(csr_node_id_t))
 	);
 
+	node_vec.shrink_to_fit();
+	edge_vec.shrink_to_fit();
+
 	return csr_graph{std::move(node_vec), std::move(edge_vec)};
 }
 
 constexpr		std::size_t						csr_graph::save_csr_binary(const std::filesystem::path& file_path)const{
-	if(std::filesystem::is_regular_file(file_path) == false){
-		return 0;
-	}
 	std::ofstream out(file_path, std::ios::binary);
 	if(!out){
 		return 0;
@@ -164,7 +164,7 @@ constexpr		std::size_t						csr_graph::save_csr_binary(const std::filesystem::pa
 
 	write_counted(
 		reinterpret_cast<const char*>(node_vec_.data()), 
-		signed(num_node * sizeof(csr_edge_offset_t))
+		signed((num_node + 1) * sizeof(csr_edge_offset_t))
 	);
 	write_counted(
 		reinterpret_cast<const char*>(edge_vec_.data()), 
