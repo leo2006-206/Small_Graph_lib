@@ -1,5 +1,7 @@
 module;
 
+#include <cassert>
+
 export module Small_Graph:algorithm;
 
 import std;
@@ -141,6 +143,22 @@ constexpr SG::mem_distance bfs_loop_mem_dis(
 	SG::node_id_t							start_id
 );
 
+constexpr
+std::tuple<
+	std::size_t,
+	SG::mem_distance,//span_i
+	SG::mem_distance//span_j
+> count_triangle_mem_dis(
+	const is_node_edges_range_graph auto&	graph
+);
+
+constexpr std::vector<double> page_rank(
+	const is_node_edges_range_graph	auto&	graph,
+	std::uint32_t							max_iteration,
+	double									damping_factor = 0.85,
+	double									threshold = 1e-6
+);
+
 }
 
 
@@ -216,6 +234,18 @@ constexpr	std::optional<SG::node_id_t>	next_visited_bitvec::next_unvisited(){
 }
 
 }
+
+template <>
+struct std::formatter<SG::mem_distance> : std::formatter<std::string>{
+	auto format(const SG::mem_distance& md, std::format_context& ctx) const{
+        // std::format_to writes directly to the output buffer
+        return std::format_to(
+			ctx.out(), 
+			"mem_dis\n\tcount\t:\t{}\n\tmean\t:\t{}\n\tstd\t:\t{}",
+			md.ms.count, md.ms.get_mean(), md.ms.get_std()
+		);
+    }
+};
 
 
 // function impl
@@ -369,6 +399,140 @@ constexpr SG::mem_distance bfs_loop_mem_dis(
 	}
 
 	return md;
+}
+
+constexpr
+std::tuple<
+	std::size_t,
+	SG::mem_distance,//span_i
+	SG::mem_distance//span_j
+> count_triangle_mem_dis(
+	const is_node_edges_range_graph auto&	graph
+){
+	std::size_t num_tri{};
+	SG::mem_distance md_i{};
+	SG::mem_distance md_j{};
+	
+	for(node_id_t node_i = 0; node_i < graph.node_size(); ++node_i){
+		for(const node_id_t& node_j : graph.node_edges_range(node_i)){
+			if(node_j <= node_i){
+				continue;
+			}
+
+			std::span	span_i = graph.node_edges_range(node_i);
+			std::span	span_j = graph.node_edges_range(node_j);
+			std::size_t	idx_i{};
+			std::size_t idx_j{};
+
+			while(idx_i < span_i.size() && idx_j < span_j.size()){
+				const node_id_t& k_i = span_i[idx_i]; //md??
+				const node_id_t& k_j = span_j[idx_j]; //md??
+
+				//the source node_j is only a marker,
+				//that if node_j changed, it will record the differ
+				md_i(
+					alone_edge{node_j, k_i},
+					reinterpret_cast<std::intptr_t>(&k_i)
+				);
+				md_j(
+					alone_edge{node_j, k_j},
+					reinterpret_cast<std::intptr_t>(&k_j)
+				);
+
+				if(k_i <= node_j){
+					idx_i++;
+					continue;
+				}
+				if(k_j <= node_j){
+					idx_j++;
+					continue;
+				}
+
+				if(k_i == k_j){
+					num_tri++;
+					idx_i++;
+					idx_j++;
+				}
+				else if(k_i < k_j){
+					idx_i++;
+				}
+				else{
+					idx_j++;
+				}
+			}
+
+		}
+	}
+
+	return {num_tri, md_i, md_j};
+}
+
+constexpr std::vector<double> page_rank(
+	const is_node_edges_range_graph	auto&	graph,
+	std::uint32_t							max_iteration,
+	double									damping_factor,
+	double									threshold
+){
+	const auto num_node = graph.node_size();
+	const auto num_node_f = static_cast<double>(num_node);
+
+	std::vector<double> rank;
+	std::vector<double> next_rank;
+	rank.resize(num_node, 1.0 / num_node_f);
+	next_rank.resize(num_node, 0.0);
+
+	auto part1 = [&]() -> double{
+		double dangling_sum{};
+
+		for(node_id_t u{}; u < num_node; ++u){
+			std::span			outgoing = graph.node_edges_range(u);
+			const std::size_t	out_degree = outgoing.size();
+
+			if(out_degree > 0){
+				double distribute = rank[u] / static_cast<double>(out_degree);
+				for(const auto& v : outgoing){
+
+					if(graph.node_contains(v) == false){
+						std::cout << "not exist v = "<<v;
+					}
+
+					next_rank[v] += distribute;
+				}
+			}
+			else{
+				dangling_sum += rank[u];
+			}
+		}
+
+		return dangling_sum;
+	};
+
+	auto part2 = [&](double dangling_sum) -> double{
+		double base_rank = (1.0 - damping_factor) / num_node_f;
+        double dangling_distribution = (damping_factor * dangling_sum) / num_node_f;
+        double total_diff{};
+
+		for(node_id_t u{}; u < num_node; ++u){
+			next_rank[u] = base_rank + dangling_distribution + (damping_factor * next_rank[u]);
+			total_diff += std::abs(next_rank[u] - rank[u]);
+
+			rank[u] = next_rank[u];
+			next_rank[u] = 0.0;
+		}
+
+		return total_diff;
+	};
+
+	for(auto _ : std::views::iota(0U, max_iteration)){
+		double sum = part1();
+		double diff = part2(sum);
+
+		if(diff < threshold){
+			break;
+		}
+	}
+
+	return rank;
 }
 
 }

@@ -5,6 +5,27 @@ import Small_Graph;
 
 #include <assert.h>
 
+auto make_csr(){
+	SG::dyn_graph dg;
+
+	dg.insert_edge(0, 1);
+	dg.insert_edge(0, 2);
+
+	dg.insert_edge(1, 2);
+
+	dg.insert_edge(2, 3);
+	dg.insert_edge(2, 4);
+
+	dg.insert_edge(3, 4);
+
+	dg.insert_edge(4, 5);
+	dg.insert_edge(4, 6);
+
+	dg.insert_edge(5, 6);
+
+	return *SG::csr_graph::make_csr_ref(dg);
+}
+
 auto create_csr_binary(const std::filesystem::path& file_path, const std::string_view bin_file){
 	using namespace SG;
 	auto binary_path = file_path.parent_path() / bin_file;
@@ -159,6 +180,48 @@ auto bfs_test_mem(const SG::csr_graph& g, int NUM_LOOP){
 		NUM_LOOP,md.ms.count, md.ms.get_mean(), md.ms.get_std());
 }
 
+auto tri_test_mem(const SG::csr_graph& g){
+	using namespace SG;
+
+	std::size_t num_tri;
+	mem_distance m1;
+	mem_distance m2;
+
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+		// for(auto l = 0; l < NUM_LOOP; ++l){
+			
+		// }
+
+		const auto rt = count_triangle_mem_dis(g);
+		num_tri = std::get<0>(rt);
+		m1 = std::get<1>(rt);
+		m2 = std::get<2>(rt);
+	}
+
+	std::println("num triangle = {}", num_tri);
+	std::println("sequential\tmd = {}", m1);
+	std::println("non-sequential\tmd = {}", m2);
+}
+
+auto page_test_mem(const SG::csr_graph& g){
+	using namespace SG;
+
+	std::vector<double> vec;
+	{
+		Timing::raii_perf_control pc;
+		Timing::print_timer t;
+
+		vec = SG::page_rank(g, 20);
+	}
+
+	std::ranges::sort(vec);
+	for(auto i : std::views::iota(0, 10)){
+		std::println("index: {}, vec[{}] = {}", i, i, vec[std::size_t(i)]);
+	}
+}
+
 int main(void){
 
 	const auto binary_file_name = std::string_view("csr_binary_data.bin");
@@ -172,23 +235,36 @@ int main(void){
 	create_csr_binary(pokec_social, binary_file_name);
 	create_csr_binary(uk2002, binary_file_name);
 
+	auto csr = *SG::utility::load_dir_unwei_csr_g(amazon_path);
 	// auto csr = load_csr_binary(amazon_path, binary_file_name);
 	// auto csr = load_csr_binary(pokec_social, binary_file_name);
-	auto csr = load_csr_binary(uk2002, binary_file_name);
+	// auto csr = load_csr_binary(uk2002, binary_file_name);
+
+	// auto csr = make_csr();
 
 	auto benckmark= [](const SG::csr_graph& csr){
-		const int NUM_LOOP = 1;
+		// const int NUM_LOOP = 1;
 
 		// csr_test(csr, NUM_LOOP);
 		// csr_test2(csr, NUM_LOOP);
 		// dfs_test(csr, NUM_LOOP);
 		// dfs_test_mem(csr, NUM_LOOP);
 		// dfs_all_test(csr, NUM_LOOP);
-		bfs_test_mem(csr, NUM_LOOP);
-
+		// bfs_test_mem(csr, NUM_LOOP);
+		// tri_test_mem(csr);
+		page_test_mem(csr);
 	};
 
-	benckmark(csr);
+	int idx = 0;
+	for(auto e : csr.edges_range()){
+		if(csr.node_contains(e.dist) == false){
+			std::println("not edge dist = {}, idx = {}", e, idx);
+		}
+
+		idx++;
+	}
+
+	// benckmark(csr);
 
 	return 0;
 }
