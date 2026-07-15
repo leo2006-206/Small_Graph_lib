@@ -235,7 +235,7 @@ int main(void){
 	create_csr_binary(pokec_social, binary_file_name);
 	create_csr_binary(uk2002, binary_file_name);
 
-	auto csr = *SG::utility::load_dir_unwei_csr_g(amazon_path);
+	// auto csr = *SG::utility::load_dir_unwei_csr_g(amazon_path);
 	// auto csr = load_csr_binary(amazon_path, binary_file_name);
 	// auto csr = load_csr_binary(pokec_social, binary_file_name);
 	// auto csr = load_csr_binary(uk2002, binary_file_name);

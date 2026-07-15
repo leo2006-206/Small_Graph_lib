@@ -17,30 +17,25 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 # These flags will automatically apply to ALL targets created below.
 # Options: enforce, observe, ignore, quick-enforce
 # Contracts -> -fcontracts -fcontract-evaluation-semantic=enforce
+add_compile_options(
+	-O3 -march=native
+	-Wall -Wextra -Wpedantic -Wconversion
+	# -fprofile-generate
+	# -fprofile-use
+	# -fconcepts-diagnostics-depth=2
+	# -fcontracts -fcontract-evaluation-semantic=enforce
+)
+
 # add_compile_options(
-# 	-O3 -march=native
-# 	-Wall -Wextra -Wpedantic -Wconversion
-# 	# -fprofile-generate
-# 	# -fprofile-use
-# 	# -fconcepts-diagnostics-depth=2
-# 	# -fcontracts -fcontract-evaluation-semantic=enforce
+#     -O1 -g -fno-omit-frame-pointer # Better stack traces
+#     -fsanitize=address,undefined   # Enable ASan and UBSan
+#     -march=native
+#     -Wall -Wextra -Wpedantic -Wconversion
 # )
 
 # add_link_options(
-# 	# -fprofile-generate
-# 	# -fprofile-use
+#     -fsanitize=address,undefined
 # )
-
-add_compile_options(
-    -O1 -g -fno-omit-frame-pointer # Better stack traces
-    -fsanitize=address,undefined   # Enable ASan and UBSan
-    -march=native
-    -Wall -Wextra -Wpedantic -Wconversion
-)
-
-add_link_options(
-    -fsanitize=address,undefined
-)
 
 # ==============================================================================
 # 1. THE STANDARD LIBRARY & GLOBAL COMPILER FLAGS
