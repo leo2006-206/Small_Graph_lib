@@ -89,19 +89,6 @@ target_sources(
 )
 target_link_libraries(helper_lib PRIVATE std_module)
 
-add_library(graph_lib)
-target_sources(
-	graph_lib PUBLIC 
-	FILE_SET CXX_MODULES FILES
-		Module/Graph/Graph.cppm
-		Module/Graph/Graph_csr.cppm
-		Module/Graph/Graph_function.cppm
-		Module/Graph/Graph_ds.cppm
-		Module/Graph/Graph_dynamic.cppm
-		Module/Graph/Graph_ccsr.cppm
-)
-target_link_libraries(graph_lib PRIVATE std_module helper_lib)
-
 add_library(small_graph_lib)
 target_sources(
 	small_graph_lib PUBLIC 
@@ -120,7 +107,7 @@ target_link_libraries(small_graph_lib PRIVATE std_module helper_lib)
 # ==============================================================================
 
 add_executable(main Driver/main.cpp)
-target_link_libraries(main PRIVATE std_module helper_lib graph_lib small_graph_lib)
+target_link_libraries(main PRIVATE std_module helper_lib small_graph_lib)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET main PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
@@ -130,11 +117,11 @@ target_link_libraries(temp PRIVATE std_module)
 set_property(TARGET temp PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 add_executable(testing Driver/testing.cpp)
-target_link_libraries(testing PRIVATE std_module helper_lib graph_lib)
+target_link_libraries(testing PRIVATE std_module helper_lib)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET testing PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 add_executable(testcase Driver/testcase.cpp)
-target_link_libraries(testcase PRIVATE std_module helper_lib graph_lib)
+target_link_libraries(testcase PRIVATE std_module helper_lib)
 # SPEEDUP FIX 4: Disabled LTO for daily development
 set_property(TARGET testcase PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
