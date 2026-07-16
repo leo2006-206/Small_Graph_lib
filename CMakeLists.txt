@@ -17,6 +17,7 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 # These flags will automatically apply to ALL targets created below.
 # Options: enforce, observe, ignore, quick-enforce
 # Contracts -> -fcontracts -fcontract-evaluation-semantic=enforce
+
 add_compile_options(
 	-O3 -march=native
 	-Wall -Wextra -Wpedantic -Wconversion

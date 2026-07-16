@@ -152,7 +152,11 @@ std::tuple<
 	const is_node_edges_range_graph auto&	graph
 );
 
-constexpr std::vector<double> page_rank(
+constexpr
+std::pair<
+	std::vector<double>,
+	SG::mem_distance
+> page_rank_mem_dis(
 	const is_node_edges_range_graph	auto&	graph,
 	std::uint32_t							max_iteration,
 	double									damping_factor = 0.85,
@@ -465,74 +469,6 @@ std::tuple<
 	}
 
 	return {num_tri, md_i, md_j};
-}
-
-constexpr std::vector<double> page_rank(
-	const is_node_edges_range_graph	auto&	graph,
-	std::uint32_t							max_iteration,
-	double									damping_factor,
-	double									threshold
-){
-	const auto num_node = graph.node_size();
-	const auto num_node_f = static_cast<double>(num_node);
-
-	std::vector<double> rank;
-	std::vector<double> next_rank;
-	rank.resize(num_node, 1.0 / num_node_f);
-	next_rank.resize(num_node, 0.0);
-
-	auto part1 = [&]() -> double{
-		double dangling_sum{};
-
-		for(node_id_t u{}; u < num_node; ++u){
-			std::span			outgoing = graph.node_edges_range(u);
-			const std::size_t	out_degree = outgoing.size();
-
-			if(out_degree > 0){
-				double distribute = rank[u] / static_cast<double>(out_degree);
-				for(const auto& v : outgoing){
-
-					if(graph.node_contains(v) == false){
-						std::cout << "not exist v = "<<v;
-					}
-
-					next_rank[v] += distribute;
-				}
-			}
-			else{
-				dangling_sum += rank[u];
-			}
-		}
-
-		return dangling_sum;
-	};
-
-	auto part2 = [&](double dangling_sum) -> double{
-		double base_rank = (1.0 - damping_factor) / num_node_f;
-        double dangling_distribution = (damping_factor * dangling_sum) / num_node_f;
-        double total_diff{};
-
-		for(node_id_t u{}; u < num_node; ++u){
-			next_rank[u] = base_rank + dangling_distribution + (damping_factor * next_rank[u]);
-			total_diff += std::abs(next_rank[u] - rank[u]);
-
-			rank[u] = next_rank[u];
-			next_rank[u] = 0.0;
-		}
-
-		return total_diff;
-	};
-
-	for(auto _ : std::views::iota(0U, max_iteration)){
-		double sum = part1();
-		double diff = part2(sum);
-
-		if(diff < threshold){
-			break;
-		}
-	}
-
-	return rank;
 }
 
 }

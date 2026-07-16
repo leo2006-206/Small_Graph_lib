@@ -205,23 +205,6 @@ auto tri_test_mem(const SG::csr_graph& g){
 	std::println("non-sequential\tmd = {}", m2);
 }
 
-auto page_test_mem(const SG::csr_graph& g){
-	using namespace SG;
-
-	std::vector<double> vec;
-	{
-		Timing::raii_perf_control pc;
-		Timing::print_timer t;
-
-		vec = SG::page_rank(g, 20);
-	}
-
-	std::ranges::sort(vec);
-	for(auto i : std::views::iota(0, 10)){
-		std::println("index: {}, vec[{}] = {}", i, i, vec[std::size_t(i)]);
-	}
-}
-
 int main(void){
 
 	const auto binary_file_name = std::string_view("csr_binary_data.bin");
@@ -236,35 +219,25 @@ int main(void){
 	create_csr_binary(uk2002, binary_file_name);
 
 	// auto csr = *SG::utility::load_dir_unwei_csr_g(amazon_path);
-	// auto csr = load_csr_binary(amazon_path, binary_file_name);
+	auto csr = load_csr_binary(amazon_path, binary_file_name);
 	// auto csr = load_csr_binary(pokec_social, binary_file_name);
 	// auto csr = load_csr_binary(uk2002, binary_file_name);
 
 	// auto csr = make_csr();
 
 	auto benckmark= [](const SG::csr_graph& csr){
-		// const int NUM_LOOP = 1;
+		const int NUM_LOOP = 1;
 
 		// csr_test(csr, NUM_LOOP);
 		// csr_test2(csr, NUM_LOOP);
 		// dfs_test(csr, NUM_LOOP);
 		// dfs_test_mem(csr, NUM_LOOP);
 		// dfs_all_test(csr, NUM_LOOP);
-		// bfs_test_mem(csr, NUM_LOOP);
+		bfs_test_mem(csr, NUM_LOOP);
 		// tri_test_mem(csr);
-		page_test_mem(csr);
 	};
 
-	int idx = 0;
-	for(auto e : csr.edges_range()){
-		if(csr.node_contains(e.dist) == false){
-			std::println("not edge dist = {}, idx = {}", e, idx);
-		}
-
-		idx++;
-	}
-
-	// benckmark(csr);
+	benckmark(csr);
 
 	return 0;
 }
