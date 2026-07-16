@@ -26,30 +26,12 @@ struct	dyn_node{
 	[[nodiscard]] constexpr		bool						operator==(const dyn_node& other) const{
 		return (source_id_ == other.source_id_);
 	}
-
 	[[nodiscard]] constexpr		bool						edge_contains(node_id_t in_dist) const;
 	[[nodiscard]] constexpr		std::size_t					out_degree() const;
-
 	[[nodiscard]] constexpr		std::span<node_id_t>		edges_span();
 	[[nodiscard]] constexpr		std::span<const node_id_t>	edges_span() const;
-
-	//return range<alone_edge>, alone_edge{source_id_, dist} is new created, not proxy of original dist
-	[[nodiscard]] constexpr		auto/*range<alone_edge>*/	alone_edges_range() const;
-
-	[[nodiscard]] constexpr		bool						insert_edge(node_id_t in_dist);
-	constexpr					bool						try_insert_edge(node_id_t in_dist);
-	constexpr					std::size_t/*failed_count*/	insert_range_edges(/*const*/input_range_convertible<node_id_t> auto&& in_range);
-	[[nodiscard]] constexpr		std::vector<node_id_t>		insert_range_edges_vec(
-		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-	);							/*return vector{failed_edges}*/
-
-	[[nodiscard]] constexpr		bool						remove_edge(node_id_t in_dist);
-	constexpr					bool						try_remove_edge(node_id_t in_dist);
-	constexpr					std::size_t/*failed_count*/	remove_range_edges(input_range_convertible<node_id_t> auto&& in_range);
-	[[nodiscard]] constexpr		std::vector<node_id_t>		remove_range_edges_vec(
-		/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-	);							/*return vector{failed_edges}*/
-
+	constexpr		bool									insert_edge(node_id_t in_dist);
+	constexpr		bool									remove_edge(node_id_t in_dist);
 	void													sort_edges();
 };
 
@@ -131,14 +113,6 @@ constexpr		std::span<const node_id_t>	dyn_node::edges_span() const{
 	return {edge_vec_};
 }
 
-constexpr		auto/*range<alone_edge>*/	dyn_node::alone_edges_range() const{
-	auto make_alone = [this](node_id_t dist){
-		return alone_edge{source_id_, dist};
-	};
-
-	return edge_vec_ | stdrv::transform(make_alone);
-}
-
 constexpr		bool						dyn_node::insert_edge(node_id_t in_dist){
 	if constexpr (IS_simple_graph == true){
 		if(in_dist == source_id_){
@@ -151,44 +125,6 @@ constexpr		bool						dyn_node::insert_edge(node_id_t in_dist){
 	}
 	edge_vec_.emplace_back(in_dist);
 	return true;
-}
-constexpr		bool						dyn_node::try_insert_edge(node_id_t in_dist){
-	if constexpr (IS_simple_graph == true){
-		if(in_dist == source_id_){
-			return false;
-		}
-	}
-
-	if(edge_contains(in_dist)){
-		return false;
-	}
-	edge_vec_.emplace_back(in_dist);
-	return true;
-}
-constexpr		std::size_t					dyn_node::insert_range_edges(input_range_convertible<node_id_t> auto&& in_range){
-	std::size_t insert_failed_count{};
-
-	for(node_id_t dist : in_range){
-		if(insert_edge(dist) == false){
-			insert_failed_count++;
-		}
-	}
-
-	return insert_failed_count;
-}
-constexpr		std::vector<node_id_t>		dyn_node::insert_range_edges_vec(
-	/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-){
-	std::vector<node_id_t> failed_dist;
-	failed_dist.reserve(reserve_size);
-
-	for(node_id_t dist : in_range){
-		if(insert_edge(dist) == false){
-			failed_dist.emplace_back(dist);
-		}
-	}
-
-	return failed_dist;
 }
 
 constexpr		bool						dyn_node::remove_edge(node_id_t in_dist){
@@ -204,45 +140,6 @@ constexpr		bool						dyn_node::remove_edge(node_id_t in_dist){
 	}
 	edge_vec_.erase(it);
 	return true;
-}
-constexpr		bool						dyn_node::try_remove_edge(node_id_t in_dist){
-	if constexpr (IS_simple_graph == true){
-		if(in_dist == source_id_){
-			return false;
-		}
-	}
-
-	auto it = stdr::find(edge_vec_, in_dist);
-	if(it == edge_vec_.end()){
-		return false;
-	}
-	edge_vec_.erase(it);
-	return true;
-}
-constexpr		std::size_t					dyn_node::remove_range_edges(input_range_convertible<node_id_t> auto&& in_range){
-	std::size_t remove_failed_count{};
-
-	for(node_id_t dist : in_range){
-		if(remove_edge(dist) == false){
-			remove_failed_count++;
-		}
-	}
-
-	return remove_failed_count;
-}
-constexpr		std::vector<node_id_t>		dyn_node::remove_range_edges_vec(
-	/*const*/input_range_convertible<node_id_t> auto&& in_range, std::size_t reserve_size
-){
-	std::vector<node_id_t> failed_dist;
-	failed_dist.reserve(reserve_size);
-
-	for(node_id_t dist : in_range){
-		if(remove_edge(dist) == false){
-			failed_dist.emplace_back(dist);
-		}
-	}
-
-	return failed_dist;
 }
 
 void										dyn_node::sort_edges(){
